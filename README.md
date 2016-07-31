@@ -19,3 +19,5 @@ This was already a preparation for possible data compression, but this can be tu
 ##Origin of "enwik_small"
 
 Enwik small is a cut out of the wikipedia dump "enwik8" file of the Hutter Prize. Since "enwik8" is 100 MB huge, I cant provide it directly, so for testing the "enwik8_small" has to sufficient.
+
+But any other wikipedia dump from https://dumps.wikimedia.org/ should be fine to use too.
