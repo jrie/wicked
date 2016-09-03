@@ -16,8 +16,8 @@ Parsing an 100 MB wikipedia example dumb (enwik8) from Hutter Prize, took betwee
 
 This was already a preparation for possible data compression, but this can be turned of.
 
-##Origin of "enwik_small"
+##Origin of "enwik8_small"
 
-Enwik small is a cut out of the wikipedia dump "enwik8" file of the Hutter Prize. Since "enwik8" is 100 MB huge, I cant provide it directly, so for testing the "enwik8_small" has to sufficient.
+"enwik8_small" is a cut out of the wikipedia dump "enwik8" file of the Hutter Prize. Since "enwik8" is 100 MB huge, I cant provide it directly, so for testing the "enwik8_small" has to be sufficient.
 
 But any other wikipedia dump from https://dumps.wikimedia.org/ should be fine to use too.
