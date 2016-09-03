@@ -14,7 +14,7 @@
 // Switches
 #define beVerbose false
 #define debug false
-#define fileToParse "data/enwik8_small"
+#define fileToParse "data/enwik8"
 //#define fileToParse "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 #define dictionaryFile "data/words.txt"
 #define wikiTagFile "data/wikitags.txt"
@@ -24,12 +24,12 @@
 #define lineBufferBase 5120
 
 // Counts of predefined const datatypes
-#define _formats 8
-#define _entities 205
-#define _indents 3
-#define _templates 11
-#define _tagTypes 10
-#define _tagClosings 3
+#define FORMATS 8
+#define ENTITIES 211
+#define INDENTS 3
+#define TEMPLATES 11
+#define TAGTYPES 10
+#define TAGCLOSINGS 3
 
 //------------------------------------------------------------------------------
 
@@ -120,7 +120,7 @@ typedef struct xmlDataCollection {
   https://en.wikipedia.org/wiki/Help:Wiki_markup
 */
 
-const char formatNames[_formats][15] = {
+const char formatNames[FORMATS][15] = {
   "Bold + Italic",
   "Bold",
   "Italic",
@@ -131,7 +131,7 @@ const char formatNames[_formats][15] = {
   "Heading 2"
 };
 
-const char formats[_formats][7] = {
+const char formats[FORMATS][7] = {
   "'''''", // bold + italic
   "'''", // bold
   "''", // italic
@@ -145,13 +145,13 @@ const char formats[_formats][7] = {
 /*
   NOTE: Indents are online used at the beginning of the line!
 */
-const char indents[_indents][2] = {
+const char indents[INDENTS][2] = {
   "*", // List element, multiple levels, "**" Element of element
   "#", // Numbered list element, multiple levels = "##" "Element of element"
   ":", // "indent 1", multiple levels using ":::" = 3
 };
 
-const char templates[_templates][18] = {
+const char templates[TEMPLATES][18] = {
   // NOTE: Should we cover template tags as well for shortening?
   "{{-",
   "{{align",
@@ -166,7 +166,7 @@ const char templates[_templates][18] = {
   "{{unbulleted list"
 };
 
-const char wikiTagNames[_tagTypes][19] = {
+const char wikiTagNames[TAGTYPES][19] = {
   "Definition/Anchor",
   "Table",
   "Category"
@@ -179,7 +179,7 @@ const char wikiTagNames[_tagTypes][19] = {
   "Link"
 };
 
-const char tagTypes[_tagTypes][15] = {
+const char tagTypes[TAGTYPES][15] = {
   // NOTE: Handle definitions after, in case we threat, templates too
   "{{", // Definition => {{Main|autistic savant}}
   "{|", // Table start => ! (headline), |- (seperation, row/border), | "entry/ column data"
@@ -194,181 +194,181 @@ const char tagTypes[_tagTypes][15] = {
   "[[" // Link => [[Autistic community#Declaration from the autism community|sent a letter to the United Nations]]
 };
 
-const char tagClosingsTypes[_tagClosings][3] = {
+const char tagClosingsTypes[TAGCLOSINGS][3] = {
   "}}",
   "]]",
   "|}"
 };
 
-const char entities[_entities][2][8] = {
-  //Total count: 205
+const char entities[ENTITIES][2][32] = {
   //Commercial symbols
-  {"trade", "™"},
-  {"copy", "©"},
-  {"reg", "®"},
-  {"cent", "¢"},
-  {"euro", "€"},
-  {"yen", "¥"},
-  {"pound", "£"},
-  {"curren", "¤"},
+  {"trade", "\xe2\x84\xa2"},
+  {"copy", "\xc2\xa9"},
+  {"reg", "\xc2\xae"},
+  {"cent", "\xc2\xa2"},
+  {"euro", "\xe2\x82\xac"},
+  {"yen", "\xc2\xa5"},
+  {"pound", "\xc2\xa3"},
+  {"curren", "\xc2\xa4"},
   //Diacritical marks
-  {"Agrave", "À"},
-  {"Aacute", "Á"},
-  {"Acirc", "Â"},
-  {"Atilde", "Ã"},
-  {"Auml", "Ä"},
-  {"Aring", "Å"},
-  {"AElig", "Æ"},
-  {"Ccedil", "Ç"},
-  {"Egrave", "È"},
-  {"Eacute", "É"},
-  {"Ecirc", "Ê"},
-  {"Euml", "Ë"},
-  {"Igrave", "Ì"},
-  {"Iacute", "Í"},
-  {"Icirc", "Î"},
-  {"Iuml", "Ï"},
-  {"Ntilde", "Ñ"},
-  {"Ograve", "Ò"},
-  {"Oacute", "Ó"},
-  {"Ocirc", "Ô"},
-  {"Otilde", "Õ"},
-  {"Ouml", "Ö"},
-  {"Oslash", "Ø"},
-  {"OElig", "Œ"},
-  {"Ugrave", "Ù"},
-  {"Uacute", "Ú"},
-  {"Ucirc", "Û"},
-  {"Uuml", "Ü"},
-  {"Yuml", "Ÿ"},
-  {"szlig", "ß"},
-  {"agrave", "à"},
-  {"aacute", "á"},
-  {"acirc", "â"},
-  {"atilde", "ã"},
-  {"auml", "ä"},
-  {"aring", "å"},
-  {"aelig", "æ"},
-  {"ccedil", "ç"},
-  {"egrave", "è"},
-  {"eacute", "é"},
-  {"ecirc", "ê"},
-  {"euml", "ë"},
-  {"igrave", "ì"},
-  {"iacute", "í"},
-  {"icirc", "î"},
-  {"iuml", "ï"},
-  {"ntilde", "ñ"},
-  {"ograve", "ò"},
-  {"oacute", "ó"},
-  {"ocirc", "ô"},
-  {"otilde", "õ"},
-  {"ouml", "ö"},
-  {"oslash", "ø"},
-  {"oelig", "œ"},
-  {"ugrave", "ù"},
-  {"uacute", "ú"},
-  {"ucirc", "û"},
-  {"uuml", "ü"},
-  {"yuml", "ÿ"},
+  {"Agrave", "\xc3\x80"},
+  {"Aacute", "\xc3\x81"},
+  {"Acirc", "\xc3\x82"},
+  {"Atilde", "\xc3\x83"},
+  {"Auml", "\xc3\x84"},
+  {"Aring", "\xc3\x85"},
+  {"AElig", "\xc3\x86"},
+  {"Ccedil", "\xc3\x87"},
+  {"Egrave", "\xc3\x88"},
+  {"Eacute", "\xc3\x89"},
+  {"Ecirc", "\xc3\x8a"},
+  {"Euml", "\xc3\x8b"},
+  {"Igrave", "\xc3\x8c"},
+  {"Iacute", "\xc3\x8d"},
+  {"Icirc", "\xc3\x8e"},
+  {"Iuml", "\xc3\x8f"},
+  {"Ntilde", "\xc3\x91"},
+  {"Ograve", "\xc3\x92"},
+  {"Oacute", "\xc3\x93"},
+  {"Ocirc", "\xc3\x94"},
+  {"Otilde", "\xc3\x95"},
+  {"Ouml", "\xc3\x96"},
+  {"Oslash", "\xc3\x98"},
+  {"OElig", "\xc5\x92"},
+  {"Ugrave", "\xc3\x99"},
+  {"Uacute", "\xc3\x9a"},
+  {"Ucirc", "\xc3\x9b"},
+  {"Uuml", "\xc3\x9c"},
+  {"Yuml", "\xc5\xb8"},
+  {"szlig", "\xc3\x9f"},
+  {"agrave", "\xc3\xa0"},
+  {"aacute", "\xc3\xa1"},
+  {"acirc", "\xc3\xa2"},
+  {"atilde", "\xc3\xa3"},
+  {"auml", "\xc3\xa4"},
+  {"aring", "\xc3\xa5"},
+  {"aelig", "\xc3\xa6"},
+  {"ccedil", "\xc3\xa7"},
+  {"egrave", "\xc3\xa8"},
+  {"eacute", "\xc3\xa9"},
+  {"ecirc", "\xc3\xaa"},
+  {"euml", "\xc3\xab"},
+  {"igrave", "\xc3\xac"},
+  {"iacute", "\xc3\xad"},
+  {"icirc", "\xc3\xae"},
+  {"iuml", "\xc3\xaf"},
+  {"ntilde", "\xc3\xb1"},
+  {"ograve", "\xc3\xb2"},
+  {"oacute", "\xc3\xb3"},
+  {"ocirc", "\xc3\xb4"},
+  {"otilde", "\xc3\xb5"},
+  {"ouml", "\xc3\xb6"},
+  {"oslash", "\xc3\xb8"},
+  {"oelig", "\xc5\x93"},
+  {"ugrave", "\xc3\xb9"},
+  {"uacute", "\xc3\xba"},
+  {"ucirc", "\xc3\xbb"},
+  {"uuml", "\xc3\xbc"},
+  {"yuml", "\xc3\xbf"},
   //Greek characters
-  {"alpha", "α"},
-  {"beta", "β"},
-  {"gamma", "γ"},
-  {"delta", "δ"},
-  {"epsilon", "ε"},
-  {"zeta", "ζ"},
-  {"Alpha", "Α"},
-  {"Beta", "Β"},
-  {"Gamma", "Γ"},
-  {"Delta", "Δ"},
-  {"Epsilon", "Ε"},
-  {"Zeta", "Ζ"},
-  {"eta", "η"},
-  {"theta", "θ"},
-  {"iota", "ι"},
-  {"kappa", "κ"},
-  {"lambda", "λ"},
-  {"mu", "μ"},
-  {"nu", "ν"},
-  {"Eta", "Η"},
-  {"Theta", "Θ"},
-  {"Iota", "Ι"},
-  {"Kappa", "Κ"},
-  {"Lambda", "Λ"},
-  {"Mu", "Μ"},
-  {"Nu", "Ν"},
-  {"xi", "ξ"},
-  {"omicron", "ο"},
-  {"pi", "π"},
-  {"rho", "ρ"},
-  {"sigma", "σ"},
-  {"sigmaf", "ς"},
-  {"Xi", "Ξ"},
-  {"Omicron", "Ο"},
-  {"Pi", "Π"},
-  {"Rho", "Ρ"},
-  {"Sigma", "Σ"},
-  {"tau", "τ"},
-  {"upsilon", "υ"},
-  {"phi", "φ"},
-  {"chi", "χ"},
-  {"psi", "ψ"},
-  {"omega", "ω"},
-  {"Tau", "Τ"},
-  {"Upsilon", "Υ"},
-  {"Phi", "Φ"},
-  {"Chi", "Χ"},
-  {"Psi", "Ψ"},
-  {"Omega", "Ω"},
+  {"alpha", "\xce\xb1"},
+  {"beta", "\xce\xb2"},
+  {"gamma", "\xce\xb3"},
+  {"delta", "\xce\xb4"},
+  {"epsilon", "\xce\xb5"},
+  {"zeta", "\xce\xb6"},
+  {"Alpha", "\xce\x91"},
+  {"Beta", "\xce\x92"},
+  {"Gamma", "\xce\x93"},
+  {"Delta", "\xce\x94"},
+  {"Epsilon", "\xce\x95"},
+  {"Zeta", "\xce\x96"},
+  {"eta", "\xce\xb7"},
+  {"theta", "\xce\xb8"},
+  {"iota", "\xce\xb9"},
+  {"kappa", "\xce\xba"},
+  {"lambda", "\xce\xbb"},
+  {"mu", "\xce\xbc"},
+  {"nu", "\xce\xbd"},
+  {"Eta", "\xce\x97"},
+  {"Theta", "\xce\x98"},
+  {"Iota", "\xce\x99"},
+  {"Kappa", "\xce\x9a"},
+  {"Lambda", "\xce\x9b"},
+  {"Mu", "\xce\x9c"},
+  {"Nu", "\xce\x9d"},
+  {"xi", "\xce\xbe"},
+  {"omicron", "\xce\xbf"},
+  {"pi", "\xcf\x80"},
+  {"rho", "\xcf\x81"},
+  {"sigma", "\xcf\x83"},
+  {"sigmaf", "\xcf\x82"},
+  {"Xi", "\xce\x9e"},
+  {"Omicron", "\xce\x9f"},
+  {"Pi", "\xce\xa0"},
+  {"Rho", "\xce\xa1"},
+  {"Sigma", "\xce\xa3"},
+  {"tau", "\xcf\x84"},
+  {"upsilon", "\xcf\x85"},
+  {"phi", "\xcf\x86"},
+  {"chi", "\xcf\x87"},
+  {"psi", "\xcf\x88"},
+  {"omega", "\xcf\x89"},
+  {"Tau", "\xce\xa4"},
+  {"Upsilon", "\xce\xa5"},
+  {"Phi", "\xce\xa6"},
+  {"Chi", "\xce\xa7"},
+  {"Psi", "\xce\xa8"},
+  {"Omega", "\xce\xa9"},
   //Mathematical characters and formulae
-  {"int", "∫"},
-  {"sum", "∑"},
-  {"prod", "∏"},
-  {"radic", "√"},
-  {"minus", "−"},
-  {"plusmn", "±"},
-  {"infin", "∞"},
-  {"asymp", "≈"},
-  {"prop", "∝"},
-  {"equiv", "≡"},
-  {"ne", "≠"},
-  {"le", "≤"},
-  {"ge", "≥"},
-  {"times", "×"},
-  {"middot", "·"},
-  {"divide", "÷"},
-  {"part", "∂"},
-  {"prime", "′"},
-  {"Prime", "″"},
-  {"nabla", "∇"},
-  {"permil", "‰"},
-  {"deg", "°"},
-  {"there4", "∴"},
-  {"alefsym", "ℵ"},
-  {"isin", "∈"},
-  {"notin", "∉"},
-  {"cap", "∩"},
-  {"cup", "∪"},
-  {"sub", "⊂"},
-  {"sup", "⊃"},
-  {"sube", "⊆"},
-  {"supe", "⊇"},
-  {"not", "¬"},
-  {"and", "∧"},
-  {"or", "∨"},
-  {"exist", "∃"},
-  {"forall", "∀"},
-  {"rArr", "⇒"},
-  {"lArr", "⇐"},
-  {"dArr", "⇓"},
-  {"uArr", "⇑"},
-  {"hArr", "⇔"},
-  {"rarr", "→"},
-  {"darr", "↓"},
-  {"uarr", "↑"},
-  {"larr", "←"},
-  {"harr", "↔"},
+  {"int", "\xe2\x88\xab"},
+  {"sum", "\xe2\x88\x91"},
+  {"prod", "\xe2\x88\x8f"},
+  {"radic", "\xe2\x88\x9a"},
+  {"minus", "\xe2\x88\x92"},
+  {"plusmn", "\xc2\xb1"},
+  {"infin", "\xe2\x88\x9e"},
+  {"asymp", "\xe2\x89\x88"},
+  {"prop", "\xe2\x88\x9d"},
+  {"equiv", "\xe2\x89\xa1"},
+  {"ne", "\xe2\x89\xa0"},
+  {"le", "\xe2\x89\xa4"},
+  {"ge", "\xe2\x89\xa5"},
+  {"times", "\xc3\x97"},
+  {"middot", "\xc2\xb7"},
+  {"divide", "\xc3\xb7"},
+  {"part", "\xe2\x88\x82"},
+  {"prime", "\xe2\x80\xb2"},
+  {"Prime", "\xe2\x80\xb3"},
+  {"nabla", "\xe2\x88\x87"},
+  {"permil", "\xe2\x80\xb0"},
+  {"deg", "\xc2\xb0"},
+  {"there4", "\xe2\x88\xb4"},
+  {"alefsym", "\xe2\x84\xb5"},
+  {"oslash", "\xc3\xb8"},
+  {"isin", "\xe2\x88\x88"},
+  {"notin", "\xe2\x88\x89"},
+  {"cap", "\xe2\x88\xa9"},
+  {"cup", "\xe2\x88\xaa"},
+  {"sub", "\xe2\x8a\x82"},
+  {"sup", "\xe2\x8a\x83"},
+  {"sube", "\xe2\x8a\x86"},
+  {"supe", "\xe2\x8a\x87"},
+  {"not", "\xc2\xac"},
+  {"and", "\xe2\x88\xa7"},
+  {"or", "\xe2\x88\xa8"},
+  {"exist", "\xe2\x88\x83"},
+  {"forall", "\xe2\x88\x80"},
+  {"rArr", "\xe2\x87\x92"},
+  {"lArr", "\xe2\x87\x90"},
+  {"dArr", "\xe2\x87\x93"},
+  {"uArr", "\xe2\x87\x91"},
+  {"hArr", "\xe2\x87\x94"},
+  {"rarr", "\xe2\x86\x92"},
+  {"darr", "\xe2\x86\x93"},
+  {"uarr", "\xe2\x86\x91"},
+  {"larr", "\xe2\x86\x90"},
+  {"harr", "\xe2\x86\x94"},
   //Predefined entities in XML
   {"quot", "\""},
   {"amp", "&"},
@@ -376,44 +376,48 @@ const char entities[_entities][2][8] = {
   {"lt", "<"},
   {"gt", ">"},
   //Punctuation special characters
-  {"iquest", "¿"},
-  {"iexcl", "¡"},
-  {"sect", "§"},
-  {"para", "¶"},
-  {"dagger", "†"},
-  {"Dagger", "‡"},
-  {"bull", "•"},
-  {"ndash", "–"},
-  {"mdash", "—"},
-  {"lsaquo", "‹"},
-  {"rsaquo", "›"},
-  {"laquo", "«"},
-  {"raquo", "»"},
-  {"lsquo", "‘"},
-  {"rsquo", "’"},
-  {"ldquo", "“"},
-  {"rdquo", "”"},
+  {"iquest", "\xc2\xbf"},
+  {"iexcl", "\xc2\xa1"},
+  {"sect", "\xc2\xa7"},
+  {"para", "\xc2\xb6"},
+  {"dagger", "\xe2\x80\xa0"},
+  {"Dagger", "\xe2\x80\xa1"},
+  {"bull", "\xe2\x80\xa2"},
+  {"ndash", "\xe2\x80\x93"},
+  {"mdash", "\xe2\x80\x94"},
+  {"lsaquo", "\xe2\x80\xb9"},
+  {"rsaquo", "\xe2\x80\xba"},
+  {"laquo", "\xc2\xab"},
+  {"raquo", "\xc2\xbb"},
+  {"lsquo", "\xe2\x80\x98"},
+  {"rsquo", "\xe2\x80\x99"},
+  {"ldquo", "\xe2\x80\x9c"},
+  {"rdquo", "\xe2\x80\x9d"},
+  {"apos", "'"},
   //Subscripts and superscripts
-  {"#8320", "₀"},
-  {"#8321", "₁"},
-  {"#8322", "₂"},
-  {"#8323", "₃"},
-  {"#8324", "₄"},
-  {"#8325", "₅"},
-  {"#8326", "₆"},
-  {"#8327", "₇"},
-  {"#8328", "₈"},
-  {"#8329", "₉"},
-  {"#8304", "⁰"},
-  {"sup1", "¹"},
-  {"sup2", "²"},
-  {"sup3", "³"},
-  {"#8308", "⁴"},
-  {"#8309", "⁵"},
-  {"#8310", "⁶"},
-  {"#8311", "⁷"},
-  {"#8312", "⁸"},
-  {"#8313", "⁹"}
+  {"#8320", "\xe2\x82\x80"},
+  {"#8321", "\xe2\x82\x81"},
+  {"#8322", "\xe2\x82\x82"},
+  {"#8323", "\xe2\x82\x83"},
+  {"#8324", "\xe2\x82\x84"},
+  {"#8325", "\xe2\x82\x85"},
+  {"#8326", "\xe2\x82\x86"},
+  {"#8327", "\xe2\x82\x87"},
+  {"#8328", "\xe2\x82\x88"},
+  {"#8329", "\xe2\x82\x89"},
+  {"#8304", "\xe2\x81\xb0"},
+  {"sup1", "\xc2\xb9"},
+  {"sup2", "\xc2\xb2"},
+  {"sup3", "\xc2\xb3"},
+  {"#8308", "\xe2\x81\xb4"},
+  {"#8309", "\xe2\x81\xb5"},
+  {"#8310", "\xe2\x81\xb6"},
+  {"#8311", "\xe2\x81\xb7"},
+  {"#8312", "\xe2\x81\xb8"},
+  {"#8313", "\xe2\x81\xb9"},
+  {"epsilon", "\xce\xb5"},
+  {"times", "\xc3\x97"},
+  {"minus", "\xe2\x88\x92"},
 };
 
 //------------------------------------------------------------------------------
@@ -486,7 +490,7 @@ int main(int argc, char *argv[]) {
 
   //----------------------------------------------------------------------------
   // Parser start
-  while (!feof(inputFile)) {
+  while (true) {
     lineLength = 0;
 
     if (linesToProcess != 0 && currentLine > linesToProcess) {
@@ -505,13 +509,8 @@ int main(int argc, char *argv[]) {
         line = (char*) realloc(line, sizeof(char) * lineBuffer);
       }
 
-    } while (tmpChar != '\n' && !feof(inputFile));
+    } while (tmpChar != '\n' && tmpChar != '\0');
     ++byteNewLine;
-    //++lineLength;
-
-    if (feof(inputFile)) {
-      break;
-    }
 
     line[lineLength] = '\0';
 
@@ -540,6 +539,8 @@ int main(int argc, char *argv[]) {
       }
 
       nodeAdded = false;
+    } else if (line[0] == '\0') {
+     break;
     } else {
       ++byteNewLine;
     }
@@ -890,7 +891,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
 
             formatData[formatDataPos] = '\0';
 
-            for (unsigned short i = 0; i < _tagTypes; ++i) {
+            for (unsigned short i = 0; i < TAGTYPES; ++i) {
               if (strncmp(formatData, tagTypes[i], strlen(tagTypes[i])) == 0) {
                 wikiTagType = i;
                 isWikiTag = true;
@@ -991,7 +992,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
         } else {
           formatData[formatDataPos] = '\0';
 
-          for (unsigned short i = 0; i < _formats; ++i) {
+          for (unsigned short i = 0; i < FORMATS; ++i) {
             if (strcmp(formats[i], formatData) == 0) {
               if (formatType == -1) {
                 formatType = i;
@@ -1340,7 +1341,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
 
               formatData[formatDataPos] = '\0';
 
-              for (unsigned short i = 0; i < _formats; ++i) {
+              for (unsigned short i = 0; i < FORMATS; ++i) {
                 if (strcmp(formats[i], formatData) == 0) {
                   if (dataFormatType == -1) {
                     dataFormatType = i;
@@ -1389,7 +1390,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
 
                   formatData[formatDataPos] = '\0';
 
-                  for (unsigned short i = 0; i < _tagTypes; ++i) {
+                  for (unsigned short i = 0; i < TAGTYPES; ++i) {
                     if (strncmp(formatData, tagTypes[i], strlen(tagTypes[i])) == 0) {
                       tagType = i;
                       isWikiTag = true;
@@ -1627,7 +1628,7 @@ bool addEntity(short elementType, void *element, const char formatType, const bo
   } entity;
   */
 
-  for (unsigned short i = 0; i < _entities; ++i) {
+  for (unsigned short i = 0; i < ENTITIES; ++i) {
     if (strcmp(entityBuffer, entities[i][0]) == 0) {
       entity *tagEntity = NULL;
       xmlNode *xmlTag = NULL;
@@ -1717,11 +1718,12 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
   rewind(dictReadFile);
 
   bool isIncluded = false;
+  /*
+  // ReEnable to add dictionary file comparison
   unsigned int *fileIndex = malloc(sizeof(unsigned int));
   unsigned int *wordLength = malloc(sizeof(unsigned int));
   char fileWord[1024];
   unsigned int fileLine = 0;
-
   printf("[STATUS] Checking word: %d\n", wordCount);
   while (fscanf(dictReadFile, "%u|%s\n", wordLength, fileWord) == 2) {
     ++fileLine;
@@ -1736,6 +1738,7 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
         break;
       }
     }
+    */
   }
 
 
@@ -1746,8 +1749,12 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
     fflush(dictFile);
   }
 
+  /*
+  // Part of file comparions
   free(fileIndex);
   free(wordLength);
+  */
+  
   //tagWord->data = malloc(sizeof(char) * (dataLength+1));
   //strcpy(tagWord->data, readData);
 
