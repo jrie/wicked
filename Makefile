@@ -1,6 +1,6 @@
 #Makefile template from Lazyfoo Productions
 #OBJS specifies which files to compile as part of the project
-OBJS = parser.c
+OBJS = wicked.c
 
 #CC specifies which compiler we're using
 CC = gcc

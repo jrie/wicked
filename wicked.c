@@ -14,7 +14,7 @@
 // Switches
 #define beVerbose false
 #define debug false
-#define fileToParse "data/enwik8"
+#define fileToParse "data/enwik8_small"
 //#define fileToParse "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 #define dictionaryFile "data/words.txt"
 #define wikiTagFile "data/wikitags.txt"
@@ -490,7 +490,7 @@ int main(int argc, char *argv[]) {
 
   //----------------------------------------------------------------------------
   // Parser start
-  while (true) {
+  while (tmpChar != -1) {
     lineLength = 0;
 
     if (linesToProcess != 0 && currentLine > linesToProcess) {
@@ -509,7 +509,8 @@ int main(int argc, char *argv[]) {
         line = (char*) realloc(line, sizeof(char) * lineBuffer);
       }
 
-    } while (tmpChar != '\n' && tmpChar != '\0');
+    } while (tmpChar != '\n' && tmpChar != -1);
+
     ++byteNewLine;
 
     line[lineLength] = '\0';
@@ -539,8 +540,6 @@ int main(int argc, char *argv[]) {
       }
 
       nodeAdded = false;
-    } else if (line[0] == '\0') {
-     break;
     } else {
       ++byteNewLine;
     }
@@ -1715,7 +1714,7 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
   tagWord->spacesCount = spacesCount;
   tagWord->position = position;
 
-  rewind(dictReadFile);
+  //rewind(dictReadFile);
 
   bool isIncluded = false;
   /*
@@ -1738,15 +1737,18 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
         break;
       }
     }
-    */
   }
+  */
 
 
   if (!isIncluded) {
+    // Part of file comparions
+    /*
     ++fileLine;
     tagWord->wordFileStart = fileLine;
+    */
     fprintf(dictFile, "%u|%s\n", dataLength, readData);
-    fflush(dictFile);
+    //fflush(dictFile);
   }
 
   /*
@@ -1754,7 +1756,7 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
   free(fileIndex);
   free(wordLength);
   */
-  
+
   //tagWord->data = malloc(sizeof(char) * (dataLength+1));
   //strcpy(tagWord->data, readData);
 
