@@ -18,7 +18,7 @@
 //#define SOURCEFILE "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 #define DICTIONARYFILE "data/words.txt"
 #define WIKITAGSFILE "data/wikitags.txt"
-#define LINETOPROCESS 0
+#define LINETOPROCESS 250
 
 // Buffers
 #define LINEBUFFERBASE 5120
@@ -889,7 +889,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
             do {
               tmpChar = line[formatReaderPos];
 
-              if (formatDataPos == 64 || (formatReaderPos > 1 && tmpChar == ':') || tmpChar == '\0') {
+              if (formatDataPos == 32 || tmpChar == '\0') {
                 break;
               }
 
@@ -1396,7 +1396,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
                   do {
                     tmpChar = readData[formatReaderPos];
 
-                    if (formatDataPos == 64 || (formatReaderPos > 1 && tmpChar == ':') || tmpChar == '\0') {
+                    if (formatDataPos == 32 || tmpChar == '\0') {
                       break;
                     }
 
