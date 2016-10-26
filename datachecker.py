@@ -21,6 +21,8 @@ tagTypes = [
 tagClosings = ["}}", "|}", "]]"]
 cleanupSequences = ["|", "}", "]"]
 
+orphands = ["|", "{", "[", "'", "="]
+
 srcLineData = [];
 
 #-------------------------------------------------------------------------------
@@ -90,20 +92,20 @@ with open("data/wikitags.txt") as wikitagFile:
             tagVariants = [tagTypes[tagType].capitalize(), tagTypes[tagType]]
 
             if (srcLineData[line].find(before+tagVariants[0]+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "", 1)
+                srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
             elif (srcLineData[line].find(before+tagVariants[1]+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "", 1)
+                srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
             else:
                 if (srcLineData[line].find(before+tagVariants[0]+tag) != -1):
-                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "", 1)
+                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "    ", 1)
                 else:
-                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "", 1)
+                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
         else:
             if (srcLineData[line].find(before+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tag, "", 1)
+                srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
             else:
                 srcLineData[line] = srcLineData[line].replace(before+tag, "", 1)
@@ -209,7 +211,7 @@ with open("data/words.txt") as wordFile:
                 if replacements == 2:
                     break
 
-        srcLineData[line] = srcLineData[line].replace(word, "", 1)
+        srcLineData[line] = srcLineData[line].replace(word, "    ", 1)
         x += 1;
 
 
@@ -230,10 +232,10 @@ for index, line in enumerate(srcLineData):
         if pos < len(srcLineData[index]):
             after = srcLineData[index][pos+1]
 
-        if before != "{" and after != "}":
+        if (before in orphands or after in orphands) or (before == " " or after == " "):
             srcLineData[index] = srcLineData[index].replace("|", "", 1);
 
-        pos = srcLineData[index].find("|", pos)
+        pos = srcLineData[index].find("|", pos+1)
 
     """
     srcLineData[index] = line.replace("|", "");
@@ -257,8 +259,18 @@ with open("data/enwik8_small_shadow", "w") as srcFile:
     for line in srcLineData:
         srcFile.write(line)
 
-
 #-------------------------------------------------------------------------------
 
+print("\n\n=========================================================================\nReporting orphands\n=========================================================================\n")
+
+for index, line in enumerate(srcLineData):
+    for orphand in orphands:
+        if orphand in line:
+            if orphand == "=" and line.find("==") == -1:
+                continue
+            print("Orphand symbols in line %d: %s\n" %(index, line.strip()))
+            break
+
+#-------------------------------------------------------------------------------
 
 print("\nDone. Bye bye.")
