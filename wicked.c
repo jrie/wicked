@@ -18,7 +18,7 @@
 //#define SOURCEFILE "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 #define DICTIONARYFILE "data/words.txt"
 #define WIKITAGSFILE "data/wikitags.txt"
-#define LINETOPROCESS 250
+#define LINETOPROCESS 0
 
 // Buffers
 #define LINEBUFFERBASE 5120
