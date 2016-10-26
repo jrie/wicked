@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+from string import ascii_letters
 
 entityPattern = re.compile(r"&[#0-9\w]*;")
 
@@ -108,7 +109,7 @@ with open("data/wikitags.txt") as wikitagFile:
                 srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
             else:
-                srcLineData[line] = srcLineData[line].replace(before+tag, "", 1)
+                srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
                 srcLineData[line] = srcLineData[line].replace(after, "")
 
         if formatType != -1:
@@ -257,19 +258,40 @@ for index, line in enumerate(srcLineData):
 print("\n\nWriting shadow data to disk...")
 with open("data/enwik8_small_shadow", "w") as srcFile:
     for line in srcLineData:
-        srcFile.write(line)
+        srcFile.write(line.rstrip())
 
 #-------------------------------------------------------------------------------
 
 print("\n\n=========================================================================\nReporting orphands\n=========================================================================\n")
 
 for index, line in enumerate(srcLineData):
+    line = line.lstrip()
+
+    if (line == ""):
+        continue;
+        
+    if line[0] == '<':
+        posStart = line.find(">", 1)
+        posEnd = line.rfind("<")
+
+        if posEnd != -1 and posEnd > posStart:
+            line = line[posStart+1:posEnd].rstrip()
+        else:
+            if posStart != -1:
+                line = line[posStart+1:].rstrip()
+
+    isReported = False
     for orphand in orphands:
         if orphand in line:
-            if orphand == "=" and line.find("==") == -1:
-                continue
             print("Orphand symbols in line %d: %s\n" %(index, line.strip()))
+            isReported = True
             break
+
+    if not isReported:
+        for item in ascii_letters:
+            if item in line:
+                print("Orphand strings in line %d: %s\n" %(index, line.strip()))
+                break
 
 #-------------------------------------------------------------------------------
 
