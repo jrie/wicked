@@ -190,7 +190,7 @@ with open("data/words.txt") as wordFile:
                 if pos > 0:
                     previousChar = srcLineData[line][pos-1]
 
-                if pos < len(srcLineData[line]):
+                if pos + formatLength < len(srcLineData[line]):
                     nextChar = srcLineData[line][pos+formatLength]
 
                 if formatType < 3:
@@ -211,8 +211,31 @@ with open("data/words.txt") as wordFile:
                 if replacements == 2:
                     break
 
-        srcLineData[line] = srcLineData[line].replace(word, "    ", 1)
-        x += 1;
+
+        if (word != ""):
+            xmlMatch = re.search(r"<[\s\w\d\=\:\"\\\/]*>", srcLineData[line])
+            pos = -1
+
+            if xmlMatch:
+                for index, char in enumerate(srcLineData[line]):
+
+                    if char == " ":
+                        continue
+                    elif char == "<":
+                        if xmlMatch.start() == index:
+                            pos = srcLineData[line].find(word, xmlMatch.end())
+                            break
+                    else:
+                        pos = srcLineData[line].find(word)
+                        break
+
+
+            if pos != -1 and word[0] in ascii_letters:
+                srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos + length:]
+            else:
+                srcLineData[line] = srcLineData[line].replace(word, "", 1)
+
+        x += 1
 
 
 #-------------------------------------------------------------------------------
@@ -229,13 +252,15 @@ for index, line in enumerate(srcLineData):
         if pos > 0:
             before = srcLineData[index][pos-1]
 
-        if pos < len(srcLineData[index]):
+        if pos + 1 < len(srcLineData[index]):
             after = srcLineData[index][pos+1]
+
+        pos = -1
 
         if (before in orphands or after in orphands) or (before == " " or after == " "):
             srcLineData[index] = srcLineData[index].replace("|", "", 1);
+            pos = srcLineData[index].find("|")
 
-        pos = srcLineData[index].find("|", pos+1)
 
     """
     srcLineData[index] = line.replace("|", "");
@@ -248,6 +273,7 @@ for index, line in enumerate(srcLineData):
 print("\n\nMerging whitespace...")
 for index, line in enumerate(srcLineData):
     matches = re.findall(r"[ ]{2,}", line);
+
     if (matches != None):
         for match in matches:
             srcLineData[index] = srcLineData[index].replace(match, "");
