@@ -755,8 +755,36 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
         }
       }
 
-      if (nodeClosed)
+
+      if (nodeClosed) {
+        if (xmlTagStart != 0) {
+            unsigned int dataReaderPos = 0;
+            bool readData = false;
+
+            while (!readData) {
+              switch (line[dataReaderPos]) {
+                case ' ':
+                  ++dataReaderPos;
+                  continue;
+                  break;
+                case '<':
+                  return 1;
+                  break;
+                default:
+                  parseXMLData(dataReaderPos, xmlEnd, currentLine, line, xmlTag, dictFile, wtagFile, dictReadFile, cData);
+                  readData = true;
+                  break;
+              }
+            }
+        }
+
+        if (BEVERBOSE || DEBUG) {
+          printf("[STATUS]  | LINE: %8d | %sNODE CLOSED: '%s'\n", currentLine, xmlTag->isDataNode ? "DATA " : "", xmlTag->name);
+        }
+
         return 1;
+      }
+
     }
 
     if (BEVERBOSE || DEBUG) {
@@ -820,12 +848,19 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
   char entityBuffer[11] = "\0";
   unsigned short entityReadPos = 0;
   unsigned short entityWritePos = 0;
+  readIn = '\0';
   //printf("in parese func, currentLine: %d\n", currentLine);
 
   //printf("line: %d\n", currentLine);
   while (readerPos <= lineLength) {
+
+    if (readIn == '<') {
+      break;
+    }
+
     readIn = line[readerPos];
 
+    // Escape before xml tag closings and such
     switch (readIn) {
       case '\n':
         if (writerPos != 0) {
@@ -944,6 +979,11 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
               ++writerPos;
             }
           } else {
+            if (writerPos != 0) {
+              createWord = true;
+              break;
+            }
+
             ++readerPos;
             continue;
           }
@@ -1453,6 +1493,11 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
                     ++writerPos;
                   }
                 } else {
+                  if (writerPos != 0) {
+                    createWord = true;
+                    break;
+                  }
+                  
                   ++readerPos;
                   continue;
                 }
