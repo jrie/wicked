@@ -92,25 +92,24 @@ with open("data/wikitags.txt") as wikitagFile:
         if tagTypes[tagType] != "":
             tagVariants = [tagTypes[tagType].capitalize(), tagTypes[tagType]]
 
-            if (srcLineData[line].find(before+tagVariants[0]+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "    ", 1)
-                srcLineData[line] = srcLineData[line].replace(after, "")
-            elif (srcLineData[line].find(before+tagVariants[1]+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "    ", 1)
-                srcLineData[line] = srcLineData[line].replace(after, "")
+            if (srcLineData[line].find(before+tagVariants[0]+tag+after) != -1):
+                srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag+after, "    ", 1)
+            elif (srcLineData[line].find(before+tagVariants[1]+tag+after) != -1):
+                srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag+after, "    ", 1)
             else:
                 if (srcLineData[line].find(before+tagVariants[0]+tag) != -1):
                     srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "    ", 1)
                 else:
                     srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "    ", 1)
+
                 srcLineData[line] = srcLineData[line].replace(after, "")
         else:
             if (srcLineData[line].find(before+tag) != -1):
                 srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
-                srcLineData[line] = srcLineData[line].replace(after, "")
             else:
                 srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
-                srcLineData[line] = srcLineData[line].replace(after, "")
+
+            srcLineData[line] = srcLineData[line].replace(after, "")
 
         if formatType != -1:
             formatting = formats[formatType]
@@ -258,7 +257,7 @@ for index, line in enumerate(srcLineData):
 print("\n\nWriting shadow data to disk...")
 with open("data/enwik8_small_shadow", "w") as srcFile:
     for line in srcLineData:
-        srcFile.write(line.rstrip())
+        srcFile.write(line.rstrip()+"\n")
 
 #-------------------------------------------------------------------------------
 
@@ -269,7 +268,7 @@ for index, line in enumerate(srcLineData):
 
     if (line == ""):
         continue;
-        
+
     if line[0] == '<':
         posStart = line.find(">", 1)
         posEnd = line.rfind("<")
@@ -283,14 +282,14 @@ for index, line in enumerate(srcLineData):
     isReported = False
     for orphand in orphands:
         if orphand in line:
-            print("Orphand symbols in line %d: %s\n" %(index, line.strip()))
+            print("Orphand symbols in line %d: %s\n" %(index+1, line.strip()))
             isReported = True
             break
 
     if not isReported:
         for item in ascii_letters:
             if item in line:
-                print("Orphand strings in line %d: %s\n" %(index, line.strip()))
+                print("Orphand strings in line %d: %s\n" %(index+1, line.strip()))
                 break
 
 #-------------------------------------------------------------------------------
