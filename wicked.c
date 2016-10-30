@@ -923,23 +923,24 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
         }
         break;
       case '\t':
+        ++cData->byteWhitespace;
+
+        if (writerPos == 0) {
+          preSpacesCount += 1;
+        } else {
+          spacesCount += 1;
+        }
+
         if (writerPos != 0) {
           createWord = true;
           break;
         }
 
-        if (writerPos == 0) {
-          preSpacesCount += 2;
-        } else {
-          spacesCount += 2;
-        }
-
-        cData->byteWhitespace += 2;
-
         ++readerPos;
         continue;
       case ' ':
         ++cData->byteWhitespace;
+
         if (isWikiTag) {
           readData[writerPos] = readIn;
           ++writerPos;
@@ -1029,7 +1030,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
             if (wikiTagDepth <= 0) {
               doCloseWikiTag = true;
               break;
-            } else  if (isWikiTag) {
+            } else if (isWikiTag) {
               readData[writerPos] = readIn;
               ++writerPos;
             }
@@ -1046,7 +1047,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
 
         readData[writerPos] = readIn;
         ++writerPos;
-
         ++readerPos;
         continue;
         break;
@@ -1104,10 +1104,15 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
               } else if (formatType == i) {
                 doCloseFormat = true;
               } else {
-                if (DEBUG) {
-                  printf("[DEBUG] Formatting does not match, forcing it to: %d > %d\n\n", formatType, i);
+                printf("[ ERROR ] %10d - Formatting does not match. Using %s (%d) instead of %s (%d) and adding it to regular data.\n\n", currentLine, formatNames[ (int) formatType], (int) formatType, formatNames[i], i);
+
+                for (int i = 0; i < formatDataPos; ++i) {
+                  readData[writerPos] = formatData[i];
+                  ++writerPos;
                 }
-                formatType = i;
+
+                readerPos += formatDataPos - 1;
+                continue;
               }
 
               readerPos += formatDataPos - 1;
