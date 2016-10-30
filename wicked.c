@@ -126,6 +126,15 @@ typedef struct collectionStatistics {
   unsigned int failedElements;
 } collectionStatistics;
 
+//------------------------------------------------------------------------------
+
+typedef struct parserDataHandle {
+  FILE* dictFile;
+  FILE* dictReadFile;
+  FILE* wtagFile;
+  struct xmlDataCollection* xmlCollection;
+  struct collectionStatistics* cData;
+} parserDataHandle;
 
 //------------------------------------------------------------------------------
 
@@ -442,8 +451,8 @@ const char entities[ENTITIES][2][32] = {
 
 //------------------------------------------------------------------------------
 // Function declarations
-int parseXMLNode(const unsigned int, const unsigned int, const unsigned int, const char*, xmlDataCollection*, FILE*, FILE*, FILE*, collectionStatistics*);
-int parseXMLData(const unsigned int, const unsigned int, const unsigned int, const char*, xmlNode*, FILE*, FILE*, FILE*, collectionStatistics*);
+int parseXMLNode(const unsigned int, const unsigned int, const unsigned int, const char*, const struct parserDataHandle*);
+int parseXMLData(const unsigned int, const unsigned int, const unsigned int, const char*, struct xmlNode*, const struct parserDataHandle*);
 
 /*
   NOTE: First parameters of all three functions: elementType.
@@ -451,9 +460,9 @@ int parseXMLData(const unsigned int, const unsigned int, const unsigned int, con
         elementType = 1 => wikiTag
         void *element = xmlNode/wikiTag
 */
-bool addWikiTag(short, void*, const char, const bool, const short, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, FILE*, FILE*, FILE*, collectionStatistics*);
-bool addEntity(short, void*, const char, const bool, const unsigned char, unsigned const char, const unsigned int, const unsigned int, const char[], collectionStatistics*);
-bool addWord(const short, void*, const unsigned int, const char, const bool, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, FILE*, FILE*, collectionStatistics*);
+bool addWikiTag(short, void*, const char, const bool, const short, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parserDataHandle*);
+bool addEntity(short, void*, const char, const bool, const unsigned char, unsigned const char, const unsigned int, const unsigned int, const char[], const struct parserDataHandle*);
+bool addWord(const short, void*, const unsigned int, const char, const bool, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parserDataHandle*);
 
 // Clean up functions
 void freeXMLCollection(xmlDataCollection*);
@@ -493,6 +502,13 @@ int main(int argc, char *argv[]) {
 
   xmlDataCollection xmlCollection = {0, 0, NULL, NULL};
 
+  parserDataHandle parserRunTimeData;
+  parserRunTimeData.dictFile = dictFile;
+  parserRunTimeData.wtagFile = wtagFile;
+  parserRunTimeData.dictReadFile = dictReadFile;
+  parserRunTimeData.xmlCollection = &xmlCollection;
+  parserRunTimeData.cData = &cData;
+
   //----------------------------------------------------------------------------
   // Parser start
   while (tmpChar != -1) {
@@ -525,15 +541,49 @@ int main(int argc, char *argv[]) {
       if (strchr(line, '>') != NULL) {
         unsigned int xmlTagStart = 0;
 
+        /*
+        typedef struct parserData {
+          FILE* dictFile;
+          FILE* dictReadFile;
+          FILE* wtagFile;
+          struct xmlDataCollection* xmlCollection;
+          struct collectionStatistics* statisticsData;
+          struct collectionStatistics* cData;
+        } parserData;
+
+        typedef struct dataHandle {
+          short elementType;
+          short wikiTagType;
+          void* element;
+          unsigned int dataLength;
+          unsigned int fileLine;
+          unsigned int position;
+          char formatType;
+          bool formatGroup;
+          unsigned char preSpacesCount;
+          unsigned char spacesCount;
+          char* data;
+
+        } dataHandle;
+
+        typedef struct xmlDataHandle {
+          unsigned int startinPos;
+          unsigned int lineLength;
+          unsigned int currentLine;
+          struct xmlNode* xmlTag;
+          char *line;
+        } xmlDataHandle;
+        */
+
         if (line[0] == '<') {
-          parseXMLNode(0, lineLength, currentLine, line, &xmlCollection, dictFile, wtagFile, dictReadFile, &cData);
+          parseXMLNode(0, lineLength, currentLine, line, &parserRunTimeData);
           nodeAdded = true;
         } else {
           xmlTagStart = strchr(line, '<') - line;
 
           if (xmlTagStart > 0) {
             cData.bytePreWhiteSpace += xmlTagStart;
-            parseXMLNode(xmlTagStart, lineLength, currentLine, line, &xmlCollection, dictFile, wtagFile, dictReadFile, &cData);
+            parseXMLNode(xmlTagStart, lineLength, currentLine, line, &parserRunTimeData);
             nodeAdded = true;
           }
         }
@@ -541,7 +591,7 @@ int main(int argc, char *argv[]) {
 
       if (!nodeAdded) {
         // Read in data line to current xmlNode
-        parseXMLData(0, lineLength, currentLine, line, &xmlCollection.nodes[xmlCollection.count-1], dictFile, wtagFile, dictReadFile, &cData);
+        parseXMLData(0, lineLength, currentLine, line, &xmlCollection.nodes[xmlCollection.count-1], &parserRunTimeData);
       }
 
       nodeAdded = false;
@@ -575,9 +625,11 @@ int main(int argc, char *argv[]) {
 
 //------------------------------------------------------------------------------
 
+int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, const unsigned int currentLine, const char *line, const struct parserDataHandle* parserRunTimeData) {
 
+  xmlDataCollection* xmlCollection = parserRunTimeData->xmlCollection;
+  collectionStatistics* cData = parserRunTimeData->cData;
 
-int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, const unsigned int currentLine, const char *line, xmlDataCollection *xmlCollection, FILE *dictFile, FILE *wtagFile, FILE *dictReadFile, collectionStatistics *cData) {
   //printf("in parse xmlNode: %d\n", currentLine);
   xmlCollection->nodes = (xmlNode*) realloc(xmlCollection->nodes, sizeof(xmlNode) * (xmlCollection->count + 1));
   xmlNode *xmlTag = &xmlCollection->nodes[xmlCollection->count];
@@ -771,7 +823,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
                   return 1;
                   break;
                 default:
-                  parseXMLData(dataReaderPos, xmlEnd, currentLine, line, xmlTag, dictFile, wtagFile, dictReadFile, cData);
+                  parseXMLData(dataReaderPos, xmlEnd, currentLine, line, xmlTag, parserRunTimeData);
                   readData = true;
                   break;
               }
@@ -800,7 +852,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
   // Start process the data of the XML tag
   if (readerPos < xmlEnd) {
     xmlTag->isDataNode = true;
-    parseXMLData(readerPos, xmlEnd, currentLine, line, xmlTag, dictFile, wtagFile, dictReadFile, cData);
+    parseXMLData(readerPos, xmlEnd, currentLine, line, xmlTag, parserRunTimeData);
   }
 
   return 1;
@@ -808,7 +860,10 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
 
 //------------------------------------------------------------------------------
 
-int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const unsigned int currentLine, const char* line, xmlNode *xmlTag, FILE *dictFile, FILE *wtagFile, FILE *dictReadFile, collectionStatistics *cData) {
+int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const unsigned int currentLine, const char* line, xmlNode *xmlTag, const struct parserDataHandle* parserRunTimeData) {
+
+  collectionStatistics* cData = parserRunTimeData->cData;
+
   if (DEBUG) {
     printf("====================================================================\n");
     printf("[DEBUG] START PARSING DATA => TAG: '%s' | READERPOS: %d | LINE: %d\n", xmlTag->name, readerPos, currentLine);
@@ -1138,7 +1193,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
         }
 
         // TODO: Add wikiTag handling routine
-        if (addWikiTag(0, xmlTag, formatType, formatGroup, wikiTagType, preSpacesCount, spacesCount, currentLine, position, readData, dictFile, wtagFile, dictReadFile, cData)) {
+        if (addWikiTag(0, xmlTag, formatType, formatGroup, wikiTagType, preSpacesCount, spacesCount, currentLine, position, readData, parserRunTimeData)) {
           isAdded = true;
           ++cData->wikiTagCount;
         }
@@ -1151,7 +1206,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
         }
 
         // TODO: Add entity handling routine
-        if (addEntity(0, xmlTag, formatType, formatGroup, preSpacesCount, spacesCount, currentLine, position, entityBuffer, cData)) {
+        if (addEntity(0, xmlTag, formatType, formatGroup, preSpacesCount, spacesCount, currentLine, position, entityBuffer, parserRunTimeData)) {
           isAdded = true;
           ++cData->entityCount;
         }
@@ -1165,7 +1220,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
         }
 
         // TODO: Think of "pre" and "/pre" as switch for nonformatting parts
-        if (addWord(0, xmlTag, writerPos, formatType, formatGroup, preSpacesCount, spacesCount, currentLine, position, readData, dictFile, dictReadFile, cData)) {
+        if (addWord(0, xmlTag, writerPos, formatType, formatGroup, preSpacesCount, spacesCount, currentLine, position, readData, parserRunTimeData)) {
           isAdded = true;
           ++cData->wordCount;
         }
@@ -1224,7 +1279,11 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
 //------------------------------------------------------------------------------
 
 
-bool addWikiTag(short elementType, void *element, const char formatType, const bool formatGroup, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, FILE *dictFile, FILE *wtagFile, FILE *dictReadFile, collectionStatistics *cData) {
+bool addWikiTag(short elementType, void *element, const char formatType, const bool formatGroup, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parserDataHandle *parserRunTimeData) {
+
+  collectionStatistics* cData = parserRunTimeData->cData;
+  FILE* wtagFile = parserRunTimeData->wtagFile;
+
   /*
   typedef struct wikiTag {
     unsigned char preSpacesCount;
@@ -1497,7 +1556,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
                     createWord = true;
                     break;
                   }
-                  
+
                   ++readerPos;
                   continue;
                 }
@@ -1574,7 +1633,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
             }
 
             tag->pipedEntities = (entity*) realloc(tag->pipedEntities, sizeof(entity) * (tag->entityCount+1));
-            if (addEntity(1, tag, formatType, formatGroup, preSpacesCount, spacesCount, fileLine, position, entityBuffer, cData)) {
+            if (addEntity(1, tag, dataFormatType, formatGroup, preSpacesCount, spacesCount, fileLine, position, entityBuffer, parserRunTimeData)) {
               isAdded = true;
               ++cData->entityCount;
             }
@@ -1591,7 +1650,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
             }
 
             tag->pipedTags = (wikiTag*) realloc(tag->pipedTags, sizeof(wikiTag) * (tag->wTagCount+1));
-            if (addWikiTag(1, tag, formatType, formatGroup, tagType, preSpacesCount, spacesCount, fileLine, position, parserData, dictFile, wtagFile, dictReadFile, cData)) {
+            if (addWikiTag(1, tag, dataFormatType, formatGroup, tagType, preSpacesCount, spacesCount, fileLine, position, parserData, parserRunTimeData)) {
               isAdded = true;
               ++cData->wikiTagCount;
             }
@@ -1606,7 +1665,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
             }
 
             tag->pipedWords = (word*) realloc(tag->pipedWords, sizeof(word) * (tag->wordCount+1));
-            if (addWord(1, tag, writerPos, formatType, formatGroup, preSpacesCount, spacesCount, fileLine, position, parserData, dictFile, dictReadFile, cData)) {
+            if (addWord(1, tag, writerPos, dataFormatType, formatGroup, preSpacesCount, spacesCount, fileLine, position, parserData, parserRunTimeData)) {
               isAdded = true;
               ++cData->wordCount;
             }
@@ -1679,7 +1738,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
 //------------------------------------------------------------------------------
 
 
-bool addEntity(short elementType, void *element, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char entityBuffer[], collectionStatistics *cData) {
+bool addEntity(short elementType, void *element, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char entityBuffer[], const struct parserDataHandle* parserRunTimeData) {
   /*
   typedef struct entity {
     short formatType;
@@ -1691,6 +1750,8 @@ bool addEntity(short elementType, void *element, const char formatType, const bo
     char data[3];
   } entity;
   */
+
+  collectionStatistics* cData = parserRunTimeData->cData;
 
   for (unsigned short i = 0; i < ENTITIES; ++i) {
     if (strcmp(entityBuffer, entities[i][0]) == 0) {
@@ -1740,7 +1801,7 @@ bool addEntity(short elementType, void *element, const char formatType, const bo
 //------------------------------------------------------------------------------
 
 
-bool addWord(const short elementType, void *element, const unsigned int dataLength, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, FILE* dictFile, FILE* dictReadFile, collectionStatistics *cData) {
+bool addWord(const short elementType, void *element, const unsigned int dataLength, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parserDataHandle* parserRunTimeData) {
   /*
   typedef struct word {
     unsigned int position;
@@ -1753,6 +1814,8 @@ bool addWord(const short elementType, void *element, const unsigned int dataLeng
   } word;
   */
 
+  collectionStatistics* cData = parserRunTimeData->cData;
+  FILE* dictFile = parserRunTimeData->dictFile;
 
   word *tagWord = NULL;
   xmlNode *xmlTag = NULL;
