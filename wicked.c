@@ -128,13 +128,13 @@ typedef struct collectionStatistics {
 
 //------------------------------------------------------------------------------
 
-typedef struct parseBaseStore {
+typedef struct parserBaseStore {
   FILE* dictFile;
   FILE* dictReadFile;
   FILE* wtagFile;
   struct xmlDataCollection* xmlCollection;
   struct collectionStatistics* cData;
-} parseBaseStore;
+} parserBaseStore;
 
 //------------------------------------------------------------------------------
 
@@ -451,8 +451,8 @@ const char entities[ENTITIES][2][32] = {
 
 //------------------------------------------------------------------------------
 // Function declarations
-int parseXMLNode(const unsigned int, const unsigned int, const unsigned int, const char*, const struct parseBaseStore*);
-int parseXMLData(const unsigned int, const unsigned int, const unsigned int, const char*, struct xmlNode*, const struct parseBaseStore*);
+int parseXMLNode(const unsigned int, const unsigned int, const unsigned int, const char*, const struct parserBaseStore*);
+int parseXMLData(const unsigned int, const unsigned int, const unsigned int, const char*, struct xmlNode*, const struct parserBaseStore*);
 
 /*
   NOTE: First parameters of all three functions: elementType.
@@ -460,9 +460,9 @@ int parseXMLData(const unsigned int, const unsigned int, const unsigned int, con
         elementType = 1 => wikiTag
         void *element = xmlNode/wikiTag
 */
-bool addWikiTag(short, void*, const char, const bool, const short, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parseBaseStore*);
-bool addEntity(short, void*, const char, const bool, const unsigned char, unsigned const char, const unsigned int, const unsigned int, const char[], const struct parseBaseStore*);
-bool addWord(const short, void*, const unsigned int, const char, const bool, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parseBaseStore*);
+bool addWikiTag(short, void*, const char, const bool, const short, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parserBaseStore*);
+bool addEntity(short, void*, const char, const bool, const unsigned char, unsigned const char, const unsigned int, const unsigned int, const char[], const struct parserBaseStore*);
+bool addWord(const short, void*, const unsigned int, const char, const bool, const unsigned char, const unsigned char, const unsigned int, const unsigned int, const char*, const struct parserBaseStore*);
 
 // Clean up functions
 void freeXMLCollection(xmlDataCollection*);
@@ -502,7 +502,7 @@ int main(int argc, char *argv[]) {
 
   xmlDataCollection xmlCollection = {0, 0, NULL, NULL};
 
-  parseBaseStore parserRunTimeData;
+  parserBaseStore parserRunTimeData;
   parserRunTimeData.dictFile = dictFile;
   parserRunTimeData.wtagFile = wtagFile;
   parserRunTimeData.dictReadFile = dictReadFile;
@@ -625,7 +625,7 @@ int main(int argc, char *argv[]) {
 
 //------------------------------------------------------------------------------
 
-int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, const unsigned int currentLine, const char *line, const struct parseBaseStore* parserRunTimeData) {
+int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, const unsigned int currentLine, const char *line, const struct parserBaseStore* parserRunTimeData) {
 
   xmlDataCollection* xmlCollection = parserRunTimeData->xmlCollection;
   collectionStatistics* cData = parserRunTimeData->cData;
@@ -860,7 +860,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
 
 //------------------------------------------------------------------------------
 
-int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const unsigned int currentLine, const char* line, xmlNode *xmlTag, const struct parseBaseStore* parserRunTimeData) {
+int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const unsigned int currentLine, const char* line, xmlNode *xmlTag, const struct parserBaseStore* parserRunTimeData) {
 
   collectionStatistics* cData = parserRunTimeData->cData;
 
@@ -1279,7 +1279,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const un
 //------------------------------------------------------------------------------
 
 
-bool addWikiTag(short elementType, void *element, const char formatType, const bool formatGroup, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parseBaseStore *parserRunTimeData) {
+bool addWikiTag(short elementType, void *element, const char formatType, const bool formatGroup, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parserBaseStore *parserRunTimeData) {
 
   collectionStatistics* cData = parserRunTimeData->cData;
   FILE* wtagFile = parserRunTimeData->wtagFile;
@@ -1738,7 +1738,7 @@ bool addWikiTag(short elementType, void *element, const char formatType, const b
 //------------------------------------------------------------------------------
 
 
-bool addEntity(short elementType, void *element, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char entityBuffer[], const struct parseBaseStore* parserRunTimeData) {
+bool addEntity(short elementType, void *element, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char entityBuffer[], const struct parserBaseStore* parserRunTimeData) {
   /*
   typedef struct entity {
     short formatType;
@@ -1801,7 +1801,7 @@ bool addEntity(short elementType, void *element, const char formatType, const bo
 //------------------------------------------------------------------------------
 
 
-bool addWord(const short elementType, void *element, const unsigned int dataLength, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parseBaseStore* parserRunTimeData) {
+bool addWord(const short elementType, void *element, const unsigned int dataLength, const char formatType, const bool formatGroup, const unsigned char preSpacesCount, const unsigned char spacesCount, const unsigned int fileLine, const unsigned int position, const char *readData, const struct parserBaseStore* parserRunTimeData) {
   /*
   typedef struct word {
     unsigned int position;
