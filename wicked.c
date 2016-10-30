@@ -614,10 +614,12 @@ int main(int argc, char *argv[]) {
 
   fclose(inputFile);
   fclose(dictFile);
+  fclose(dictReadFile);
   fclose(wtagFile);
 
   //----------------------------------------------------------------------------
   // Cleanup
+
   free(line);
   freeXMLCollection(&xmlCollection);
   return 0;
