@@ -395,7 +395,7 @@ def mergeWhiteSpace(srcLineData):
             outputData.append(line)
             outputDataLineNums.append(x)
 
-    pruge()
+    purge()
     return [outputData, outputDataLineNums]
 
 #----------------------------------------------------------------------------------------------------------------------------
