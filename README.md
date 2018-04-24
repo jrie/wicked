@@ -1,8 +1,8 @@
 # wicked
-A wikipedia dump parser written in C.
+A wikipedia dump parser written in pure C.
 
 ## In short
-wickec parses wikipedia xml dumps. And should function as a foundation for an compressor, reading out data, attributes, key and values of XML and Wikipedia data.
+*wicked* parses (wikipedia) xml dumps. And should function as a foundation for an compressor, reading out data, attributes, key and values of XML and Wikipedia tag data into RAM, but also saving out parsing results to files and delivering debug output to aid checking for errors or providing a file count/byte detection statistic.
 
 ## Status and further information
 **wicked is work in progress.**
@@ -17,7 +17,7 @@ Each of this elements contains background information about pre and postscpacing
 
 #### datachecker.py
 
-**datachecker.py** is a small written in Python 3 to filter out collected information stored in the **.txt** element files. It does consume a lot of memory and heavily uses regular expressions. It reports all left over information from *wikipedia dump* to **orphandReport.txt** which consists of all lines containing some kind of data, which has not been succesfully replaced by all other clearing routines of *datachecker.py*.
+**datachecker.py** is a small written in Python3 to filter out collected information stored in the **.txt** element files. It does consume a lot of memory and heavily uses regular expressions. It reports all left over information from *wikipedia dump* to **orphandReport.txt** which consists of all lines containing some kind of data, which has not been succesfully replaced by all other clearing routines of *datachecker.py*.
 
 ## Origin of "enwik8_small"
 
