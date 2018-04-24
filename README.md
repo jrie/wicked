@@ -2,7 +2,7 @@
 A wikipedia dump parser written in C.
 
 ## In short
-wickec parses wikipedia xml dumps. And should function as a foundation for an compressor, reading out data, attributes, key and values of XML and Wikipedia data.
+*wicked* parses (wikipedia) xml dumps. And should function as a foundation for an compressor, reading out data, attributes, key and values of XML and Wikipedia tag data.
 
 ## Status and further information
 **wicked is work in progress.**
