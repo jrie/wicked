@@ -12,12 +12,29 @@ PRINTWORD = False
 PRINTENITIES = False
 DOSAVE = True
 
+#-------------------------------------------------------------------------------
+"""
+srcFilePath = "data/enwik8"
+wikiTagPath = 'data/wikitags.txt'
+xmlTagPath = 'data/xmltags.txt'
+wordPath = 'data/words.txt'
+entityPath = 'data/entities.txt'
+"""
+#srcFilePath = "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
+srcFilePath = "data/enwiki8_small"
+wikiTagPath = 'wikitags.txt'
+xmlTagPath = 'xmltags.txt'
+wordPath = 'words.txt'
+entityPath = 'entities.txt'
+
 # Have the line limit increase by one
 #if LIMIT != 0: LIMIT += 1
 
 # Internals
 formats = ["'''''", "'''", "''", '======', '=====', '====', '===', '==']
 tagOpenings = ['{{', '{|', '[[']
+tagClosings = ['}}', '|}',  ']]']
+cleanupSequences = ['|', '}', ']', '{', '[']
 tagTypes = [
     '',
     '',
@@ -31,28 +48,23 @@ tagTypes = [
     ''
 ]
 
-tagClosings = ['}}', '|}',  ']]']
-cleanupSequences = ['|', '}', ']', '{', '[']
+for index, value in enumerate(formats):
+    formats[index] = escape(value)
+
+for index, value in enumerate(tagOpenings):
+    tagOpenings[index] = escape(value)
+
+for index, value in enumerate(tagClosings):
+    tagClosings[index] = escape(value)
+
+for index, value in enumerate(tagTypes):
+    tagTypes[index] = escape(value)
 
 srcLineData = []
 outputData = []
 outputDataLineNums = []
 
-#-------------------------------------------------------------------------------
-"""
-srcFilePath = "data/enwik8"
-wikiTagPath = 'data/wikitags.txt'
-xmlTagPath = 'data/xmltags.txt'
-wordPath = 'data/words.txt'
-entityPath = 'data/entities.txt'
-"""
-
-#srcFilePath = "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
-srcFilePath = "data/enwiki8_small"
-wikiTagPath = 'wikitags.txt'
-xmlTagPath = 'xmltags.txt'
-wordPath = 'words.txt'
-entityPath = 'entities.txt'
+# Start 1
 
 print('\nReading source data...')
 with open(srcFilePath, 'r') as srcFile:
@@ -99,25 +111,23 @@ def removeWikiTags(srcLineData):
 
             workLine = srcLineData[lineNum]
 
-            if formatType != -1 and ownFormat == -1 and isFormatStart:
-                preRegEx1.append(escape(formats[formatType]))
-            elif ownFormat != -1 and isFormatStart:
-                preRegEx1.append(escape(formats[ownFormat]))
+            if isFormatStart:
+                if ownFormat != -1: preRegEx1.append(formats[ownFormat])
+                else: preRegEx1.append(formats[formatType])
 
             if tagType == 0:
-                preRegEx1.append(escape(tagOpenings[0]))
-                preRegEx2.append(escape(tagClosings[0]))
+                preRegEx1.append(tagOpenings[0])
+                preRegEx2.append(tagClosings[0])
             elif tagType == 1:
-                preRegEx1.append(escape(tagOpenings[1]))
-                preRegEx2.append(escape(tagClosings[1]))
+                preRegEx1.append(tagOpenings[1])
+                preRegEx2.append(tagClosings[1])
             else:
-                preRegEx1.append(escape(tagOpenings[2]))
-                preRegEx2.append(escape(tagClosings[2]))
+                preRegEx1.append(tagOpenings[2])
+                preRegEx2.append(tagClosings[2])
 
-            if formatType != -1 and ownFormat == -1 and isFormatEnd:
-                    preRegEx2.append(escape(formats[formatType]))
-            elif ownFormat != -1 and isFormatEnd:
-                preRegEx2.append(escape(formats[ownFormat]))
+            if isFormatEnd:
+                if ownFormat != -1: preRegEx1.append(formats[ownFormat])
+                else: preRegEx1.append(formats[formatType])
 
             preRegEx1.append(r'[\s]{0,}' + tag)
 
@@ -237,16 +247,13 @@ def removeWords(srcLineData):
                 preRegEx1 = []
                 preRegEx2 = []
 
-                if formatType != -1 and ownFormat == -1:
-                    if isFormatStart:
-                        preRegEx1.append(escape(formats[formatType]))
-                    if isFormatEnd:
-                        preRegEx2.append(escape(formats[formatType]))
-                elif ownFormat != -1:
-                    if isFormatStart:
-                        preRegEx1.append(escape(formats[ownFormat]))
-                    if isFormatEnd:
-                        preRegEx2.append(escape(formats[ownFormat]))
+                if isFormatStart:
+                    if ownFormat != -1: preRegEx1.append(formats[ownFormat])
+                    else: preRegEx1.append(formats[formatType])
+
+                if isFormatEnd:
+                    if ownFormat != -1: preRegEx2.append(formats[ownFormat])
+                    else: preRegEx2.append(formats[formatType])
 
                 preRegEx1.append(r'[\s]{0,}' + word)
                 regExString = compile(''.join(preRegEx1)+r'[\|]{0,1}[\s]{0,}'+''.join(preRegEx2))
@@ -310,17 +317,13 @@ def removeEntities(srcLineData):
             preRegEx1 = []
             preRegEx2 = []
 
-            if formatType != -1 and ownFormat == -1:
-                if isFormatStart:
-                    preRegEx1.append(escape(formats[formatType]))
-                if isFormatEnd:
-                    preRegEx2.append(escape(formats[formatType]))
+            if isFormatStart:
+                if ownFormat != -1: preRegEx1.append(formats[ownFormat])
+                else: preRegEx1.append(formats[formatType])
 
-            if ownFormat != -1:
-                if isFormatStart:
-                    preRegEx1.append(escape(formats[ownFormat]))
-                if isFormatEnd:
-                    preRegEx2.append(escape(formats[ownFormat]))
+            if isFormatEnd:
+                if ownFormat != -1: preRegEx2.append(formats[ownFormat])
+                else: preRegEx2.append(formats[formatType])
 
             preRegEx1.append(r'[\s]{0,}' + entity)
             regExString = compile(''.join(preRegEx1) + ''.join(preRegEx2))
@@ -392,6 +395,7 @@ def mergeWhiteSpace(srcLineData):
             outputData.append(line)
             outputDataLineNums.append(x)
 
+    pruge()
     return [outputData, outputDataLineNums]
 
 #----------------------------------------------------------------------------------------------------------------------------
