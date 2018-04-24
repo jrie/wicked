@@ -7,13 +7,14 @@ CC = gcc
 
 #COMPILER_FLAGS specifies the additional compilation options we're using
 # -w suppresses all warnings
+#COMPILER_FLAGS = -Wall -std=c11 -O3 -g -fpack-struct=2
 COMPILER_FLAGS = -Wall -std=c11 -O3 -g -fpack-struct=2
 
 #LINKER_FLAGS specifies the libraries we're linking against
 LINKER_FLAGS = -lm
 
 #OBJ_NAME specifies the name of our exectuable
-OBJ_NAME = cp
+OBJ_NAME = wicked
 
 #This is the target that compiles our executable
 all : $(OBJS)

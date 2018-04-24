@@ -1,323 +1,455 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re
+from re import escape, compile, search, sub, finditer, purge
+import sys  # sys.stdout.write(), sys.stdout.flush()
 from string import ascii_letters
+from math import floor
 
-entityPattern = re.compile(r"&[#0-9\w]*;")
+# Constants
+LIMIT = 0
+PRINTWIKI = False
+PRINTWORD = False
+PRINTENITIES = False
+DOSAVE = True
 
-formats = ["'''''", "'''", "''", "======", "=====", "====", "===", "=="]
-tagOpenings = ["{{", "{|", "[["]
+# Have the line limit increase by one
+#if LIMIT != 0: LIMIT += 1
+
+# Internals
+formats = ["'''''", "'''", "''", '======', '=====', '====', '===', '==']
+tagOpenings = ['{{', '{|', '[[']
 tagTypes = [
-    "",
-    "",
-    "category:",
-    "media:",
-    "file:",
-    "image:",
-    "sound:",
-    "wiktionary:",
-    "wikipedia:",
-    ""
+    '',
+    '',
+    'category:',
+    'media:',
+    'file:',
+    'image:',
+    'sound:',
+    'wiktionary:',
+    'wikipedia:',
+    ''
 ]
 
-tagClosings = ["}}", "|}", "]]"]
-cleanupSequences = ["|", "}", "]"]
+tagClosings = ['}}', '|}',  ']]']
+cleanupSequences = ['|', '}', ']', '{', '[']
 
-orphands = ["|", "{", "[", "'", "="]
-
-srcLineData = [];
+srcLineData = []
+outputData = []
+outputDataLineNums = []
 
 #-------------------------------------------------------------------------------
+"""
+srcFilePath = "data/enwik8"
+wikiTagPath = 'data/wikitags.txt'
+xmlTagPath = 'data/xmltags.txt'
+wordPath = 'data/words.txt'
+entityPath = 'data/entities.txt'
+"""
 
-print("\nReading source data...")
-with open("data/enwik8_small", "r") as srcFile:
-    for line in srcFile:
+#srcFilePath = "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
+srcFilePath = "data/enwiki8_small"
+wikiTagPath = 'wikitags.txt'
+xmlTagPath = 'xmltags.txt'
+wordPath = 'words.txt'
+entityPath = 'entities.txt'
+
+print('\nReading source data...')
+with open(srcFilePath, 'r') as srcFile:
+    for index, line in enumerate(srcFile):
+        if LIMIT != 0 and index > LIMIT:
+            break
         srcLineData.append(line);
 
 #-------------------------------------------------------------------------------
+def removeWikiTags(srcLineData):
+    print('\n\nRemoving wiki tags...')
+    with open(wikiTagPath, 'r') as wikitagFile:
+        x = 0
+        for line in wikitagFile:
+            x += 1
 
-print("\nRemoving entities...")
-onePercent = round(len(srcLineData) / 100.0)
-x = 0
+        onePercent = floor(x / 100.0)
+        if onePercent == 0: onePercent = 1
 
-for index, line in enumerate(srcLineData):
-    if x != 0 and x % onePercent == 0:
-        print(".", end="", flush=True)
+        wikitagFile.seek(0)
 
-    entities = re.findall(entityPattern, line)
-    if entities != None:
-        for entity in entities:
-            srcLineData[index] = srcLineData[index].replace(entity, "", 1)
+        for x, dataLine in enumerate(wikitagFile):
+            if x % onePercent == 0:
+                sys.stdout.write('.')
+                sys.stdout.flush()
 
-    x += 1
+            lineData = dataLine.rstrip('\n').split('|', 8)
+            lineNum = int(lineData[0]) - 1
+            position = int(lineData[1])
+            tagType = int(lineData[2])
+            formatType = int(lineData[3])
+            ownFormat = int(lineData[4])
+            isFormatStart = int(lineData[5])
+            isFormatEnd = int(lineData[6])
+            length = int(lineData[7])
+            tag = escape(lineData[8])
+
+            if LIMIT != 0 and lineNum > LIMIT:
+                purge()
+                return srcLineData
+
+            preRegEx1 = []
+            preRegEx2 = []
+
+            workLine = srcLineData[lineNum]
+
+            if formatType != -1 and ownFormat == -1 and isFormatStart:
+                preRegEx1.append(escape(formats[formatType]))
+            elif ownFormat != -1 and isFormatStart:
+                preRegEx1.append(escape(formats[ownFormat]))
+
+            if tagType == 0:
+                preRegEx1.append(escape(tagOpenings[0]))
+                preRegEx2.append(escape(tagClosings[0]))
+            elif tagType == 1:
+                preRegEx1.append(escape(tagOpenings[1]))
+                preRegEx2.append(escape(tagClosings[1]))
+            else:
+                preRegEx1.append(escape(tagOpenings[2]))
+                preRegEx2.append(escape(tagClosings[2]))
+
+            if formatType != -1 and ownFormat == -1 and isFormatEnd:
+                    preRegEx2.append(escape(formats[formatType]))
+            elif ownFormat != -1 and isFormatEnd:
+                preRegEx2.append(escape(formats[ownFormat]))
+
+            preRegEx1.append(r'[\s]{0,}' + tag)
+
+            regExString = compile(r'[\s]{0,}'+''.join(preRegEx1)+r'[\|]{0,1}')
+            regExString2 = compile(r'[\s]{0,}'+r''.join(preRegEx2))
+
+            if LIMIT != 0 and lineNum == LIMIT and PRINTWIKI:
+                print('##################################')
+                print('-------------------------------------------------------------------------------')
+                print(ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
+                print(lineData)
+                print(regExString.pattern)
+                print(regExString2.pattern)
+                print('-----------------------------------------')
+                print(workLine)
+
+            workLine = regExString.sub(' ', workLine, 1)
+            srcLineData[lineNum] = regExString2.sub(' ', workLine, 1).lstrip('|').lstrip()
+
+            if LIMIT != 0 and lineNum == LIMIT and PRINTWIKI:
+                print('-----------------------------------------')
+                print(srcLineData[lineNum])
+
+    purge()
+    return srcLineData
+
+#--------------------------------------------------------------------------------------------------------------------------
+def removeXMLTags(srcLineData):
+    print('\n\nCleaning xml tags...')
+
+    with open(xmlTagPath, 'r') as xmlFile:
+        x = 0
+        for line in xmlFile:
+            x += 1
+
+        onePercent = floor(x / 100.0)
+        if onePercent == 0: onePercent = 1
+        x = 0
+
+        xmlFile.seek(0)
+
+        for dataLine in xmlFile:
+            if x % onePercent == 0:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+
+            lineData = dataLine.rstrip('\n').split('|', 4)
+            start = int(lineData[0]) - 1
+            end = int(lineData[1]) - 1
+            isClosed = int(lineData[2])
+            isDataNode = int(lineData[3])
+            tagName = escape(lineData[4])
+
+            if LIMIT != 0 and start > LIMIT:
+                purge()
+                return srcLineData
+
+            workLine = srcLineData[start]
+            regExString = compile(r'<'+tagName+r'[^>]{0,}>')
+            srcLineData[start] = sub(regExString, ' ', workLine, 1)
+
+            if LIMIT != 0:
+                if end <= LIMIT:
+                    regExString = compile(r'<[\/]{0,1}'+tagName+r'[^>\/]{0,}>')
+                    srcLineData[end] = sub(regExString, ' ', srcLineData[end], 1)
+            else:
+                regExString = compile(r'<[\/]{0,1}'+tagName+r'[^>\/]{0,}>')
+                srcLineData[end] = sub(regExString, ' ', srcLineData[end], 1)
+
+            x += 1
+
+    purge()
+    return srcLineData
 
 #-------------------------------------------------------------------------------
+def removeWords(srcLineData):
 
-print("\n\nRemoving wiki tags...")
-with open("data/wikitags.txt") as wikitagFile:
+    print('\n\nRemoving words...')
+    sortedWordList = {}
+    with open(wordPath, 'r') as wordFile:
+
+        x = 0
+        for line in wordFile:
+            x += 1
+
+            lineData = line.rstrip('\n').split('|', 7)
+            lineNum = int(lineData[0]) - 1
+            position = int(lineData[1])
+
+            if sortedWordList.has_key(lineNum):
+                sortedWordList[lineNum][position] = lineData
+            else:
+                sortedWordList[lineNum] = {}
+                sortedWordList[lineNum][position] = lineData
+
+        onePercent = floor(x / 100.0)
+        if onePercent == 0: onePercent = 1
+        x = 0
+
+        for lineNum in sortedWordList.iterkeys():
+            if LIMIT != 0 and lineNum > LIMIT: return srcLineData
+            workLine = srcLineData[lineNum].lstrip()
+
+            for lineData in sortedWordList[lineNum].itervalues():
+                position = int(lineData[1])
+                length = int(lineData[2])
+                formatType = int(lineData[3])
+                ownFormat = int(lineData[4])
+                isFormatStart = int(lineData[5])
+                isFormatEnd = int(lineData[6])
+                word = escape(lineData[7])
+
+                if x % onePercent == 0:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+
+                preRegEx1 = []
+                preRegEx2 = []
+
+                if formatType != -1 and ownFormat == -1:
+                    if isFormatStart:
+                        preRegEx1.append(escape(formats[formatType]))
+                    if isFormatEnd:
+                        preRegEx2.append(escape(formats[formatType]))
+                elif ownFormat != -1:
+                    if isFormatStart:
+                        preRegEx1.append(escape(formats[ownFormat]))
+                    if isFormatEnd:
+                        preRegEx2.append(escape(formats[ownFormat]))
+
+                preRegEx1.append(r'[\s]{0,}' + word)
+                regExString = compile(''.join(preRegEx1)+r'[\|]{0,1}[\s]{0,}'+''.join(preRegEx2))
+
+                if LIMIT != 0 and lineNum == LIMIT and PRINTWORD:
+                    print('##################################')
+                    print('-------------------------------------------------------------------------------')
+                    print(ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
+                    print(lineData)
+                    print(regExString.pattern)
+                    print('-----------------------------------------')
+                    print(workLine)
+                for match in finditer(regExString, workLine):
+                    findSpot = match.span()
+                    workLine = workLine[:findSpot[0]] + workLine[findSpot[1]:]
+                    break;
+
+                if LIMIT != 0 and lineNum == LIMIT and PRINTWORD:
+                    print('-----------------------------------------')
+                    print(workLine)
+
+                x += 1
+
+            srcLineData[lineNum] = workLine.lstrip('|').lstrip()
+            purge()
+
+    purge()
+    return srcLineData
+
+#-------------------------------------------------------------------------------
+def removeEntities(srcLineData):
+    print('\n\nRemoving entities...')
+
+    with open(entityPath, 'r') as entityFile:
+        x = 0
+        for line in entityFile:
+            x += 1
+
+        onePercent = floor(x / 100.0)
+        if onePercent == 0: onePercent = 1
+
+        entityFile.seek(0)
+
+        for x, dataLine in enumerate(entityFile):
+            if x % onePercent == 0:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+
+            lineData = dataLine.rstrip('\n').split('|', 6)
+            lineNum = int(lineData[0]) - 1
+            if LIMIT != 0 and lineNum > LIMIT: continue
+            position = int(lineData[1])
+            formatType = int(lineData[2])
+            ownFormat = int(lineData[3])
+            isFormatStart = int(lineData[4])
+            isFormatEnd = int(lineData[5])
+            entity = escape(lineData[6])
+
+            workLine = srcLineData[lineNum]
+
+            preRegEx1 = []
+            preRegEx2 = []
+
+            if formatType != -1 and ownFormat == -1:
+                if isFormatStart:
+                    preRegEx1.append(escape(formats[formatType]))
+                if isFormatEnd:
+                    preRegEx2.append(escape(formats[formatType]))
+
+            if ownFormat != -1:
+                if isFormatStart:
+                    preRegEx1.append(escape(formats[ownFormat]))
+                if isFormatEnd:
+                    preRegEx2.append(escape(formats[ownFormat]))
+
+            preRegEx1.append(r'[\s]{0,}' + entity)
+            regExString = compile(''.join(preRegEx1) + ''.join(preRegEx2))
+
+            if LIMIT != 0 and lineNum == LIMIT and PRINTENITIES:
+                print('##################################')
+                print('-------------------------------------------------------------------------------')
+                print(ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
+                print(lineData)
+                print(regExString.pattern)
+                print('-----------------------------------------')
+                print(workLine)
+
+            for match in finditer(regExString, workLine):
+                findSpot = match.span()
+                srcLineData[lineNum] = workLine[:findSpot[0]] + workLine[findSpot[1]:]
+                break;
+
+            if LIMIT != 0 and lineNum == LIMIT and PRINTENITIES:
+                print('-----------------------------------------')
+                print(srcLineData[lineNum])
+
+    purge()
+    return srcLineData
+
+#-------------------------------------------------------------------------------
+def cleanupLeftOver(srcLineData):
+    print('\n\nCleaning pipe characters, formatting and wikitag characters from src data...')
+    onePercent = floor(len(srcLineData) / 100.0)
+    if onePercent == 0: onePercent = 1
     x = 0
-    for line in wikitagFile:
+
+    for index, line in enumerate(srcLineData):
+        if x % onePercent == 0:
+            sys.stdout.write('.')
+            sys.stdout.flush()
+
+        if LIMIT != 0 and index > LIMIT: break
+
+        workLine = srcLineData[index];
+        for item in cleanupSequences:
+            workLine = workLine.replace(item, '')
+
+        srcLineData[index] = workLine
+
         x += 1
 
-    wikitagFile.seek(0)
 
-    onePercent = round(x / 100.0)
-    x = 0
-
-    for dataLine in wikitagFile:
-        if x != 0 and x % onePercent == 0:
-            print(".", end="", flush=True)
-
-        lineData = dataLine.rstrip("\n").split("|", 4)
-        line = int(lineData[0])-1
-        tagType = int(lineData[1])
-        formatType = int(lineData[2])
-        length = int(lineData[3])
-        tag = lineData[4]
-
-        entities = re.findall(entityPattern, tag)
-        if entities != None:
-            for entity in entities:
-                tag = tag.replace(entity, "", 1)
-
-        if tagType == 0:
-            before = tagOpenings[0]
-            after = tagClosings[0]
-        elif tagType == 1:
-            before = tagOpenings[1]
-            after = tagClosings[1]
-        else:
-            before = tagOpenings[2]
-            after = tagClosings[2]
-
-        if tagTypes[tagType] != "":
-            tagVariants = [tagTypes[tagType].capitalize(), tagTypes[tagType]]
-
-            if (srcLineData[line].find(before+tagVariants[0]+tag+after) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag+after, "    ", 1)
-            elif (srcLineData[line].find(before+tagVariants[1]+tag+after) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag+after, "    ", 1)
-            else:
-                if (srcLineData[line].find(before+tagVariants[0]+tag) != -1):
-                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[0]+tag, "    ", 1)
-                else:
-                    srcLineData[line] = srcLineData[line].replace(before+tagVariants[1]+tag, "    ", 1)
-
-                srcLineData[line] = srcLineData[line].replace(after, "")
-        else:
-            if (srcLineData[line].find(before+tag) != -1):
-                srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
-            else:
-                srcLineData[line] = srcLineData[line].replace(before+tag, "    ", 1)
-
-            srcLineData[line] = srcLineData[line].replace(after, "")
-
-        if formatType != -1:
-            formatting = formats[formatType]
-            formatLength = len(formatting)
-
-            pos = srcLineData[line].find(formatting)
-
-            replacements = 0
-            while pos != -1:
-                previousChar = ""
-                nextChar = ""
-
-                if pos > 0:
-                    previousChar = srcLineData[line][pos-1]
-
-                if pos < len(srcLineData[line]):
-                    nextChar = srcLineData[line][pos+formatLength]
-
-                if formatType < 3:
-                    if nextChar != "'" and previousChar != "'":
-                        srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos+len(formatting):]
-                        replacements += 1
-                        pos = srcLineData[line].find(formatting, pos)
-                    else:
-                        pos = srcLineData[line].find(formatting, pos+1)
-
-                elif nextChar != "=" and previousChar != "=":
-                    srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos+len(formatting):]
-                    replacements += 1
-                    pos = srcLineData[line].find(formatting, pos)
-                else:
-                    pos = srcLineData[line].find(formatting, pos+1)
-
-                if replacements == 2:
-                    break
-
-
-
-
-
-        x += 1;
-
-#-------------------------------------------------------------------------------
-
-print("\n\nRemoving words...")
-with open("data/words.txt") as wordFile:
-
-    x = 0
-    for line in wordFile:
-        x += 1
-
-    wordFile.seek(0)
-
-    onePercent = round(x / 100.0)
-    x = 0
-
-    for dataLine in wordFile:
-        if x != 0 and x % onePercent == 0:
-            print(".", end="", flush=True)
-
-        lineData = dataLine.rstrip("\n").split("|", 3)
-        line = int(lineData[0]) - 1
-        length = int(lineData[1])
-        formatType = int(lineData[2])
-        word = lineData[3]
-
-        if formatType != -1:
-            formatting = formats[formatType]
-            formatLength = len(formatting)
-
-            pos = srcLineData[line].find(formatting)
-
-            replacements = 0
-            while pos != -1:
-                previousChar = ""
-                nextChar = ""
-
-                if pos > 0:
-                    previousChar = srcLineData[line][pos-1]
-
-                if pos + formatLength < len(srcLineData[line]):
-                    nextChar = srcLineData[line][pos+formatLength]
-
-                if formatType < 3:
-                    if nextChar != "'" and previousChar != "'":
-                        srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos+len(formatting):]
-                        replacements += 1
-                        pos = srcLineData[line].find(formatting, pos)
-                    else:
-                        pos = srcLineData[line].find(formatting, pos+1)
-
-                elif nextChar != "=" and previousChar != "=":
-                    srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos+len(formatting):]
-                    replacements += 1
-                    pos = srcLineData[line].find(formatting, pos)
-                else:
-                    pos = srcLineData[line].find(formatting, pos+1)
-
-                if replacements == 2:
-                    break
-
-
-        if (word != ""):
-            xmlMatch = re.search(r"<[\s\w\d\=\:\"\\\/]*>", srcLineData[line])
-            pos = -1
-
-            if xmlMatch:
-                for index, char in enumerate(srcLineData[line]):
-
-                    if char == " ":
-                        continue
-                    elif char == "<":
-                        if xmlMatch.start() == index:
-                            pos = srcLineData[line].find(word, xmlMatch.end())
-                            break
-                    else:
-                        pos = srcLineData[line].find(word)
-                        break
-
-
-            if pos != -1 and word[0] in ascii_letters:
-                srcLineData[line] = srcLineData[line][:pos] + srcLineData[line][pos + length:]
-            else:
-                srcLineData[line] = srcLineData[line].replace(word, "", 1)
-
-        x += 1
-
-
-#-------------------------------------------------------------------------------
-
-#print("\n\nCleaning leftover \"|\" pipe characters, formatting and wikitag closings from input...")
-print("\n\nCleaning leftover \"|\" pipe characters...")
-for index, line in enumerate(srcLineData):
-
-    pos = srcLineData[index].find("|")
-
-    while pos != -1:
-        before = ""
-        after = ""
-        if pos > 0:
-            before = srcLineData[index][pos-1]
-
-        if pos + 1 < len(srcLineData[index]):
-            after = srcLineData[index][pos+1]
-
-        pos = -1
-
-        if (before in orphands or after in orphands) or (before == " " or after == " "):
-            srcLineData[index] = srcLineData[index].replace("|", "", 1);
-            pos = srcLineData[index].find("|")
-
-
-    """
-    srcLineData[index] = line.replace("|", "");
-
-    for item in cleanupSequences:
-        srcLineData[index] = srcLineData[index].replace(item, "");
-    """
-
-#-------------------------------------------------------------------------------
-print("\n\nMerging whitespace...")
-for index, line in enumerate(srcLineData):
-    matches = re.findall(r"[ ]{2,}", line);
-
-    if (matches != None):
-        for match in matches:
-            srcLineData[index] = srcLineData[index].replace(match, "");
-
-#-------------------------------------------------------------------------------
-
-print("\n\nWriting shadow data to disk...")
-with open("data/enwik8_small_shadow", "w") as srcFile:
-    for line in srcLineData:
-        srcFile.write(line.rstrip()+"\n")
-
-#-------------------------------------------------------------------------------
-
-print("\n\n=========================================================================\nReporting orphands\n=========================================================================\n")
-
-for index, line in enumerate(srcLineData):
-    line = line.lstrip()
-
-    if (line == ""):
-        continue;
-
-    if line[0] == '<':
-        posStart = line.find(">", 1)
-        posEnd = line.rfind("<")
-
-        if posEnd != -1 and posEnd > posStart:
-            line = line[posStart+1:posEnd].rstrip()
-        else:
-            if posStart != -1:
-                line = line[posStart+1:].rstrip()
-
-    isReported = False
-    for orphand in orphands:
-        if orphand in line:
-            print("Orphand symbols in line %d: %s\n" %(index+1, line.strip()))
-            isReported = True
-            break
-
-    if not isReported:
+    return srcLineData
+
+#----------------------------------------------------------------------------------------------------------------------------
+def mergeWhiteSpace(srcLineData):
+    print('\n\nMerging empty lines and whitespace...')
+    onePercent = floor(len(srcLineData) / 100.0)
+    if onePercent == 0: onePercent = 1
+
+    for x, line in enumerate(srcLineData):
+        if x % onePercent == 0:
+            sys.stdout.write('.')
+            sys.stdout.flush()
+
+        line = line.strip()
+        for match in finditer(r'[\s]{2,}', line):
+            line.replace(match.group(), '', 1)
+
+        line = line.rstrip('\n')
+
+        if len(line) != 0:
+            outputData.append(line)
+            outputDataLineNums.append(x)
+
+    return [outputData, outputDataLineNums]
+
+#----------------------------------------------------------------------------------------------------------------------------
+def writeShadowData(outputData, outputDataLineNums):
+    print('\n\nWriting shadow data to disk...')
+    #with open('enwiki-20160720-pages-meta-current1.xml-p000000010p000030303_shadow', 'w') as srcFile:
+    with open(srcFilePath+'_shadow', 'w') as srcFile:
+        for index, line in enumerate(outputData):
+            srcFile.write(str(outputDataLineNums[index])+'\n'+line+'\n')
+
+#----------------------------------------------------------------------------------------------------------------------------
+def reportOrphads(outputData, outputDataLineNums):
+    if DOSAVE:
+        print('\n\n=========================================================================\nReporting orphands to file\n=========================================================================\n')
+
+    if LIMIT != 0:
+        orphandFile = open('LimitedOrphandReport.txt', 'w')
+    else:
+        orphandFile = open('orphandReport.txt', 'w')
+
+    orphandCount = 0
+    for index, line in enumerate(outputData):
+        lineNum = outputDataLineNums[index]
+
+        isReported = False
         for item in ascii_letters:
             if item in line:
-                print("Orphand strings in line %d: %s\n" %(index+1, line.strip()))
+                repDetail = 'Orphand strings in line ' + str(lineNum) + ': '+ line + '\n'
+
+                if DOSAVE: orphandFile.write(repDetail)
+                else: print(repDetail)
+
+                isReported = True
+                orphandCount += 1
                 break
 
-#-------------------------------------------------------------------------------
+        if not isReported:
+            repDetail = 'Unknown orphand found in line ' + str(lineNum) + ': '+ line + '\n'
 
-print("\nDone. Bye bye.")
+            if DOSAVE: orphandFile.write(repDetail)
+            else: print(repDetail)
+
+            orphandCount += 1
+
+
+    if DOSAVE:
+        orphandFile.close()
+        print('Reported ' + str(orphandCount) + ' of ' + str(len(srcLineData)) + ' orphands to file.\n=========================================================================')
+    else:
+        print('Reporting ' + str(orphandCount) +' of ' + str(len(srcLineData)) + ' orphands.\n=========================================================================')
+
+#----------------------------------------------------------------------------------------------------------------------------
+# Start application
+srcLineData = removeXMLTags(srcLineData)
+srcLineData = removeWikiTags(srcLineData)
+srcLineData = removeEntities(srcLineData)
+srcLineData = removeWords(srcLineData)
+outputData = mergeWhiteSpace(srcLineData)
+reportOrphads(outputData[0], outputData[1])
+#writeShadowData(outputData[0], outputData[1])
+print('Done. Have a good day!')
