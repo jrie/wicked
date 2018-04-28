@@ -6,7 +6,7 @@ A wikipedia dump parser written in pure C.
 
 ## Origin of "enwik8_small"
 
-"enwik8_small" is a cut out of the wikipedia dump "enwik8" file of the **Hutter Prize** @ http://prize.hutter1.net/] . Since *enwik8* is at 100 MB in size, the file is not directly here on github, so for testing the "enwik8_small" has to be sufficient. But I would recommend using "enwik8" or a current wikipedia (meta) dump or similar for testing *wicked*. But any other wikipedia dump from https://dumps.wikimedia.org/ should be fine to use too.
+"enwik8_small" is a cut out of the wikipedia dump "enwik8" file of the **Hutter Prize** @ http://prize.hutter1.net/ . Since *enwik8* is at 100 MB in size, the file is not directly here on github, so for testing the "enwik8_small" has to be sufficient. But I would recommend using "enwik8" or a current wikipedia (meta) dump or similar for testing *wicked*. But any other wikipedia dump from https://dumps.wikimedia.org/ should be fine to use too.
 
 ## Status and further information
 **wicked is work in progress.**
@@ -17,7 +17,7 @@ By current defaults, wicked creates a lot of debug output which shows an outline
 
 Words data is written out to **words.txt** - wikitag link targets to **wikitags.txt**. Wikitags become further processed so that included words are handled as well as styling tags. Entities are written to **entities.txt**.
 
-Each of this elements contains background information about pre and postscpacing, styling information, position in the row by index, if its a format start or end and other details inside *wicked*. I would recommend checking out the data *struct word*, *struct wikitag* and *struct entity* as well as the others.
+Each of this elements contains background information about pre and postspacing, styling information, position in the row by index, if its a format start or end and other details inside *wicked*. I would recommend checking out the data *struct word*, *struct wikitag* and *struct entity* as well as the others.
 
 #### datachecker.py
 
