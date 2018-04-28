@@ -21,4 +21,4 @@ Each of this elements contains background information about pre and postspacing,
 
 #### datachecker.py
 
-**datachecker.py** is a small written in Python3 to filter out collected information stored in the **.txt** element files. It does consume a lot of memory and heavily uses regular expressions. It reports all left over information from *wikipedia dump* to **orphandReport.txt** which consists of all lines containing some kind of data, which has not been succesfully replaced by all other clearing routines of *datachecker.py*.
+**datachecker.py** is a Python script, written for Python3, to filter out collected information stored in the **.txt** element files. It does consume a lot of memory and heavily uses regular expressions. It reports all left over information from *wikipedia dump* to **orphandReport.txt** which consists of all lines containing some kind of data, which has not been succesfully replaced by all other clearing routines of *datachecker.py*.
