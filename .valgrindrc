@@ -1,0 +1,9 @@
+--memcheck:xml=yes
+--memcheck:xml-file=memcheck.xml
+--memcheck:leak-check=full
+--memcheck:read-var-info=yes
+--memcheck:show-below-main=yes
+--memcheck:show-reachable=yes
+--memcheck:show-possibly-lost=yes
+--massif:heap=yes
+--massif:massif-out-file=massif.out
