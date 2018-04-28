@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from re import escape, compile, search, sub, finditer, purge
 import sys  # sys.stdout.write(), sys.stdout.flush()
@@ -13,6 +13,7 @@ PRINTENITIES = False
 DOSAVE = True
 
 #-------------------------------------------------------------------------------
+#srcFilePath = "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 """
 srcFilePath = "data/enwik8"
 wikiTagPath = 'data/wikitags.txt'
@@ -20,13 +21,11 @@ xmlTagPath = 'data/xmltags.txt'
 wordPath = 'data/words.txt'
 entityPath = 'data/entities.txt'
 """
-#srcFilePath = "enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 srcFilePath = "data/enwiki8_small"
 wikiTagPath = 'wikitags.txt'
 xmlTagPath = 'xmltags.txt'
 wordPath = 'words.txt'
 entityPath = 'entities.txt'
-
 # Have the line limit increase by one
 #if LIMIT != 0: LIMIT += 1
 
@@ -217,7 +216,7 @@ def removeWords(srcLineData):
             lineNum = int(lineData[0]) - 1
             position = int(lineData[1])
 
-            if sortedWordList.has_key(lineNum):
+            if lineNum in sortedWordList:
                 sortedWordList[lineNum][position] = lineData
             else:
                 sortedWordList[lineNum] = {}
@@ -227,11 +226,11 @@ def removeWords(srcLineData):
         if onePercent == 0: onePercent = 1
         x = 0
 
-        for lineNum in sortedWordList.iterkeys():
+        for lineNum in sortedWordList.keys():
             if LIMIT != 0 and lineNum > LIMIT: return srcLineData
             workLine = srcLineData[lineNum].lstrip()
 
-            for lineData in sortedWordList[lineNum].itervalues():
+            for lineData in sortedWordList[lineNum].values():
                 position = int(lineData[1])
                 length = int(lineData[2])
                 formatType = int(lineData[3])
