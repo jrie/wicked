@@ -6,7 +6,7 @@ from string import ascii_letters
 from math import floor
 
 # Constants
-LIMIT = 0
+LIMIT = 0#228 #135 #152 #228
 PRINTWIKI = False
 PRINTWORD = False
 PRINTENITIES = False
@@ -14,8 +14,8 @@ DOSAVE = True
 
 #-------------------------------------------------------------------------------
 #srcFilePath = "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
-srcFilePath = "data/enwik8_small"
-#srcFilePath = "data/enwik8"
+#srcFilePath = "data/enwik8_small"
+srcFilePath = "data/enwik8"
 
 wikiTagPath = 'wikitags.txt'
 xmlTagPath = 'xmltags.txt'
@@ -78,7 +78,6 @@ def removeWikiTags(srcLineData):
     print('\n\nRemoving wiki tags...')
 
     divider = '#' * 30
-    divider2 = '-' * 30
     divider3 = '-' * 15
 
     preRegEx1 = []
@@ -99,18 +98,19 @@ def removeWikiTags(srcLineData):
                 stdout.write('.')
                 stdout.flush()
 
-            lineData = dataLine.rstrip('\n').split('|', 10)
-            lineNum = int(lineData[0]) - 1
-            position = int(lineData[1])
-            preSpacesCount = int(lineData[2])
-            spacesCount = int(lineData[3])
-            tagType = int(lineData[4])
-            formatType = int(lineData[5])
-            ownFormat = int(lineData[6])
-            isFormatStart = int(lineData[7])
-            isFormatEnd = int(lineData[8])
-            length = int(lineData[9])
-            tag = escape(lineData[10])
+            lineData = dataLine.rstrip('\n').split('|', 11)
+            position = int(lineData[0])
+            lineNum = int(lineData[1]) - 1
+            readerPos = int(lineData[2])
+            preSpacesCount = int(lineData[3])
+            spacesCount = int(lineData[4])
+            tagType = int(lineData[5])
+            formatType = int(lineData[6])
+            ownFormat = int(lineData[7])
+            isFormatStart = int(lineData[8])
+            isFormatEnd = int(lineData[9])
+            length = int(lineData[10])
+            tag = escape(lineData[11])
 
             if LIMIT != 0 and lineNum > LIMIT:
                 purge()
@@ -123,46 +123,60 @@ def removeWikiTags(srcLineData):
 
             if preSpacesCount != 0:
                 preRegEx1.append('[\s]{'+str(preSpacesCount)+'}')
+                length += preSpacesCount
 
             if isFormatStart:
-                if ownFormat != -1: preRegEx1.append(formats[ownFormat])
-                else: preRegEx1.append(formats[formatType])
+                if ownFormat != -1:
+                    preRegEx1.append(formats[ownFormat])
+                    length += len(formats[ownFormat])
+                else:
+                     preRegEx1.append(formats[formatType])
+                     length += len(formats[formatType])
 
             if tagType == 0:
                 preRegEx1.append(tagOpenings[0])
                 preRegEx2.append(tagClosings[0])
+                length += len(tagOpenings[0])
+                length += len(tagClosings[0])
             elif tagType == 1:
                 preRegEx1.append(tagOpenings[1])
                 preRegEx2.append(tagClosings[1])
+                length += len(tagOpenings[1])
+                length += len(tagClosings[1])
             else:
                 preRegEx1.append(tagOpenings[2])
                 preRegEx2.append(tagClosings[2])
+                length += len(tagOpenings[2])
+                length += len(tagClosings[2])
 
 
             preRegEx1.append(tag)
 
             if isFormatEnd:
-                if ownFormat != -1: preRegEx2.append(formats[ownFormat])
-                else: preRegEx2.append(formats[formatType])
+                if ownFormat != -1:
+                    preRegEx2.append(formats[ownFormat])
+                    length += len(formats[ownFormat])
+                else:
+                    preRegEx2.append(formats[formatType])
+                    length += len(formats[formatType])
 
             if spacesCount != 0:
                 preRegEx2.append('[\s]{'+str(spacesCount)+'}')
+                length += spacesCount
 
             regExString = compile(''.join(preRegEx1))
             regExString2 = compile(''.join(preRegEx2))
 
             if LIMIT != 0 and lineNum == LIMIT and PRINTWIKI:
                 print(divider)
-                print(divider2)
-                print(preSpacesCount, spacesCount, ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
-                print(lineData)
+                print(lineNum, lineData)
                 print(regExString.pattern)
                 print(regExString2.pattern)
                 print(divider3)
                 print(workLine)
 
-            workLine = regExString.sub(' ', workLine, 1)
-            srcLineData[lineNum] = regExString2.sub(' ', workLine, 1)
+            workLine = regExString.sub(' ' * length, workLine, 1)
+            srcLineData[lineNum] = regExString2.sub(' ' * len(tagClosings), workLine, 1)
 
             if LIMIT != 0 and lineNum == LIMIT and PRINTWIKI:
                 print(divider3)
@@ -207,7 +221,7 @@ def removeXMLTags(srcLineData):
 
             workLine = srcLineData[start]
             regExString = compile(r'<'+tagName+r'[^>]{0,}>')
-            srcLineData[start] = sub(regExString, ' ', workLine, 1)
+            srcLineData[start] = sub(regExString, ' ', workLine, 1).lstrip()
 
             if LIMIT != 0:
                 if end <= LIMIT:
@@ -231,9 +245,8 @@ def removeWords(srcLineData):
 
     with open(wordPath, 'r') as wordFile:
         for x, line in enumerate(wordFile):
-            lineData = line.rstrip('\n').split('|', 9)
-            lineNum = int(lineData[0]) - 1
-            position = int(lineData[1])
+            lineData = line.rstrip('\n').split('|', 10)
+            lineNum = int(lineData[1]) - 1
 
             lineData = lineData[2:]
 
@@ -241,30 +254,29 @@ def removeWords(srcLineData):
                 sortedWordList[lineNum]
 
                 for index, entry in enumerate(lineData):
-                    if index < 7:
+                    if index < 8:
                         lineData[index] = int(entry)
                     else:
                         lineData[index] = entry
 
-                sortedWordList[lineNum].insert(position-1, lineData)
+                sortedWordList[lineNum].append(lineData)
             except:
                 sortedWordList[lineNum] = []
 
                 for index, entry in enumerate(lineData):
-                    if index < 7:
+                    if index < 8:
                         lineData[index] = int(entry)
                     else:
                         lineData[index] = entry
 
-                sortedWordList[lineNum].insert(position-1, lineData)
+                sortedWordList[lineNum].append(lineData)
 
     onePercent = floor(x / 100.0)
     if onePercent == 0: onePercent = 1
     x = 0
 
-    divider = '#' * 30
-    divider2 = '-' * 30
-    divider3 = '-' * 15
+    divider = '#' * 90
+    divider3 = '-' * 45
     preRegEx1 = []
     preRegEx2 = []
 
@@ -275,14 +287,15 @@ def removeWords(srcLineData):
             continue
 
         for lineData in sortedWordList[lineNum]:
-            preSpacesCount = lineData[0]
-            spacesCount = lineData[1]
-            length = lineData[2]
-            formatType = lineData[3]
-            ownFormat = lineData[4]
-            isFormatStart = lineData[5]
-            isFormatEnd = lineData[6]
-            word = escape(lineData[7])
+            readerPos = lineData[0]
+            preSpacesCount = lineData[1]
+            spacesCount = lineData[2]
+            length = lineData[3]
+            formatType = lineData[4]
+            ownFormat = lineData[5]
+            isFormatStart = lineData[6]
+            isFormatEnd = lineData[7]
+            word = escape(lineData[8])
 
             if x % onePercent == 0:
                 stdout.write('.')
@@ -291,36 +304,50 @@ def removeWords(srcLineData):
             preRegEx1 = []
             preRegEx2 = []
 
-            if preSpacesCount != 0:
+
+            if formatType != 7 and preSpacesCount != 0:
                 preRegEx1.append('[\s]{'+str(preSpacesCount)+'}')
+                length += preSpacesCount
 
             if isFormatStart:
-                if ownFormat != -1: preRegEx1.append(formats[ownFormat])
-                else: preRegEx1.append(formats[formatType])
+                if ownFormat != -1:
+                    preRegEx1.append(formats[ownFormat])
+                    length += len(formats[ownFormat])
+                else:
+                     preRegEx1.append(formats[formatType])
+                     length += len(formats[formatType])
 
+            if formatType == 7 and preSpacesCount != 0:
+                preRegEx1.append('[\s]{'+str(preSpacesCount)+'}')
+                length += preSpacesCount
 
-            preRegEx1.append(r'[\|]{0,1}' + word)
+            preRegEx1.append(word)
+
+            if spacesCount != 0:
+                preRegEx2.append('[\s]{'+str(spacesCount)+'}')
+                length += spacesCount
 
             if isFormatEnd:
-                if ownFormat != -1: preRegEx2.append(formats[ownFormat])
-                else: preRegEx2.append(formats[formatType])
-            if spacesCount != 0:
-
-                preRegEx2.append('[\s]{'+str(spacesCount)+'}')
+                if ownFormat != -1:
+                    preRegEx2.append(formats[ownFormat])
+                    length += len(formats[ownFormat])
+                else:
+                    preRegEx2.append(formats[formatType])
+                    length += len(formats[formatType])
 
             regExString = compile(''.join(preRegEx1)+''.join(preRegEx2))
+
             if LIMIT != 0 and lineNum == LIMIT and PRINTWORD:
                 print(divider)
-                print(divider2)
-                print(preSpacesCount, spacesCount, formatType, ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
-                print(lineData)
+                print(lineNum, lineData)
                 print(regExString.pattern)
                 print(divider3)
                 print(workLine)
             for match in finditer(regExString, workLine):
                 findSpot = match.span()
-                workLine = workLine[:findSpot[0]] + workLine[findSpot[1]:]
-                break;
+                if findSpot[0]+1 >= readerPos:
+                    workLine = workLine[:findSpot[0]] +(' ' * length) + workLine[findSpot[1]:]
+                    break
 
             if LIMIT != 0 and lineNum == LIMIT and PRINTWORD:
                 print(divider3)
@@ -349,9 +376,8 @@ def removeEntities(srcLineData):
 
         entityFile.seek(0)
 
-        divider = '#' * 30
-        divider2 = '-' * 30
-        divider3 = '-' * 15
+        divider = '#' * 90
+        divider3 = '-' * 45
 
         x = 0
 
@@ -360,17 +386,18 @@ def removeEntities(srcLineData):
                 stdout.write('.')
                 stdout.flush()
 
-            lineData = dataLine.rstrip('\n').split('|', 8)
-            lineNum = int(lineData[0]) - 1
+            lineData = dataLine.rstrip('\n').split('|', 9)
+            position = int(lineData[0])
+            lineNum = int(lineData[1]) - 1
             if LIMIT != 0 and lineNum > LIMIT: continue
-            position = int(lineData[1])
-            preSpacesCount = int(lineData[2])
-            spacesCount = int(lineData[3])
-            formatType = int(lineData[4])
-            ownFormat = int(lineData[5])
-            isFormatStart = int(lineData[6])
-            isFormatEnd = int(lineData[7])
-            entity = escape(lineData[8])
+            readerPos = int(lineData[2])
+            preSpacesCount = int(lineData[3])
+            spacesCount = int(lineData[4])
+            formatType = int(lineData[5])
+            ownFormat = int(lineData[6])
+            isFormatStart = int(lineData[7])
+            isFormatEnd = int(lineData[8])
+            entity = escape(lineData[9])
 
             workLine = srcLineData[lineNum]
 
@@ -386,21 +413,19 @@ def removeEntities(srcLineData):
 
             preRegEx1.append(entity)
 
-            if spacesCount != 0:
-                preRegEx2.append('[\s]{'+str(spacesCount)+'}')
 
             if isFormatEnd:
                 if ownFormat != -1: preRegEx2.append(formats[ownFormat])
                 else: preRegEx2.append(formats[formatType])
 
+            if spacesCount != 0:
+                preRegEx2.append('[\s]{'+str(spacesCount)+'}')
 
             regExString = compile(''.join(preRegEx1) + ''.join(preRegEx2))
 
             if LIMIT != 0 and lineNum == LIMIT and PRINTENITIES:
                 print(divider)
-                print(divider2)
-                print(preSpacesCount, spacesCount, formatType, ownFormat, ownFormat == -1, isFormatStart, isFormatEnd, lineNum)
-                print(lineData)
+                print(lineNum, lineData)
                 print(regExString.pattern)
                 print(divider3)
                 print(workLine)
@@ -475,7 +500,7 @@ def writeShadowData(outputData, outputDataLineNums):
 
 #----------------------------------------------------------------------------------------------------------------------------
 def reportOrphands(outputData, outputDataLineNums):
-    divider = '=' * 60;
+    divider = '=' * 80;
 
     if DOSAVE:
         print('\n\n' + divider + '\nReporting orphands to file\n' +divider + '\n')
@@ -522,9 +547,9 @@ def reportOrphands(outputData, outputDataLineNums):
 # Start application
 srcLineData = removeXMLTags(srcLineData)
 srcLineData = removeWikiTags(srcLineData)
-srcLineData = removeEntities(srcLineData)
 srcLineData = removeWords(srcLineData)
-#srcLineData = cleanupLeftOver(srcLineData)
+srcLineData = removeEntities(srcLineData)
+srcLineData = cleanupLeftOver(srcLineData)
 outputData = mergeWhiteSpace(srcLineData)
 reportOrphands(outputData[0], outputData[1])
 #writeShadowData(outputData[0], outputData[1])
