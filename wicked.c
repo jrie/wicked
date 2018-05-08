@@ -15,8 +15,10 @@
 #define BEVERBOSE false
 #define DEBUG true
 #define DOWRITEOUT true
+//#define LINETOPROCESS 5000
+//#define LINETOPROCESS 1085
+//#define LINETOPROCESS 238
 #define LINETOPROCESS 0
-//#define LINETOPROCESS 135
 
 //#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 #define SOURCEFILE "data/enwik8_small"
@@ -88,6 +90,7 @@ typedef struct wikiTag {
   unsigned int wordCount;
   unsigned int wTagCount;
   unsigned int entityCount;
+  unsigned int tagLength;
   unsigned int wikiTagFileIndex;
   unsigned int readerPos;
   unsigned char tagType;
@@ -116,7 +119,6 @@ typedef struct xmlNode {
   short lastAddedType; // 0 WORD, 1 WIKITAG, 2 ENTITY
   bool isDataNode;
   bool isClosed;
-  void *lastAddedElement;
   char *name;
   struct keyValuePair *keyValues;
   struct word *words;
@@ -487,7 +489,7 @@ int parseXMLData(const unsigned int, const unsigned int, const char*, struct xml
         elementType = 1 => wikiTag
         void *element = xmlNode/wikiTag
 */
-bool addWikiTag(const short, void*, unsigned int, const char, const char, const bool, const bool, const short, const unsigned char, const unsigned char, const char*, struct parserBaseStore*);
+bool addWikiTag(const short, void*, const unsigned int, const char, const char, const bool, const bool, const short, const unsigned char, const unsigned char, const char*, struct parserBaseStore*);
 bool addEntity(const short, void*, const unsigned int, const char, const char, const bool, const bool, const unsigned char, unsigned const char, const char*, struct parserBaseStore*);
 bool addWord(const short, void*, const unsigned int, const unsigned int, const char, const char, const bool, const bool, const unsigned char, const unsigned char, const char*, struct parserBaseStore*);
 
@@ -651,7 +653,6 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
     xmlTag->wTagCount = 0;
     xmlTag->start = parserRunTimeData->currentLine;
     xmlTag->end = parserRunTimeData->currentLine;
-    xmlTag->lastAddedElement = NULL;
     xmlTag->name = NULL;
     xmlTag->keyValues = NULL;
     xmlTag->words = NULL;
@@ -857,8 +858,8 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 
   bool isEntity = false;
   char entityBuffer[11] = "\0";
-  unsigned short entityReadPos = 0;
-  unsigned short entityWritePos = 0;
+  unsigned int entityReadPos = 0;
+  unsigned int entityWritePos = 0;
 
 
   while (readerPos < lineLength) {
@@ -869,7 +870,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
       case '\n':
       case '\r':
         if (writerPos != 0) createWord = true;
-
         break;
       case '\t':
         if (writerPos == 0) ++preSpacesCount;
@@ -890,15 +890,21 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           continue;
         }
 
-        if (writerPos != 0) {
-          ++spacesCount;
-          createWord = true;
-        } else {
-          ++preSpacesCount;
-          ++readerPos;
-          continue;
+        formatDataPos = readerPos;
+        while (line[formatDataPos] == ' ') {
+          ++formatDataPos;
+          if (writerPos != 0) ++spacesCount;
+          else ++preSpacesCount;
         }
 
+        readerPos = formatDataPos;
+        if (writerPos == 0) {
+          continue;
+        } else {
+          if (line[formatDataPos] == '\'' && line[formatDataPos + 1] == '\'' && (dataFormatType == -1 || ownFormatType == -1)) continue;
+          readerPos = formatDataPos - 1;
+          createWord = true;
+        }
 
         break;
       case '<':
@@ -974,7 +980,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
             cData->byteWikiTags += 2;
             doCloseWikiTag = true;
 
-            formatReaderPos = readerPos+2;
+            formatReaderPos = readerPos + 2;
             formatDataPos = 0;
 
             while (line[formatReaderPos] == '\'') {
@@ -1031,13 +1037,10 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           ++readerPos;
           continue;
         } else if (readIn == '\'' && writerPos != 0 && dataFormatType == -1) {
-          if (xmlTag->lastAddedType == 2) {
-            --readerPos;
-          }
+          --readerPos;
           createWord = true;
           break;
         }
-
 
         for (unsigned short i = 0; i < FORMATS; ++i) {
           if (strcmp(formats[i], formatData) == 0) {
@@ -1076,7 +1079,9 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           }
         }
 
-        if (readIn == '=' && xmlTag->firstAddedType != -1 && xmlTag->lastAddedType != -1) {
+        if (readIn == '\'' && (isFormatStart || isFormatEnd)) break;
+
+        if (xmlTag->firstAddedType != -1 && xmlTag->lastAddedType != -1) {
           if (writerPos != 0) isFormatEnd = true;
           else {
             char tempDataFormatType = -1;
@@ -1161,7 +1166,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 
         isEntity = false;
 
-        while(entityWritePos < 7 && line[entityReadPos] != ' ') {
+        while(entityWritePos < 10 && line[entityReadPos] != ' ') {
           entityBuffer[entityWritePos++] = line[entityReadPos++];
 
           if (line[entityReadPos] == ';') {
@@ -1184,46 +1189,33 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 
 
           if (line[entityReadPos] != '\'' && line[entityReadPos+1] != '\'') {
-            writerPos += entityWritePos - 1;
             readerPos = entityReadPos - 1;
             break;
           } else if (line[entityReadPos] == '\'' && line[entityReadPos+1] == '\'') {
-            writerPos += entityWritePos - 1;
-            formatDataPos = 0;
-            formatReaderPos = entityReadPos;
-            while (line[formatReaderPos] == '\'') {
-              formatData[formatDataPos++] = line[formatReaderPos++];
+            if (dataFormatType == -1) {
+              readerPos = entityReadPos - 1;
+              break;
             }
 
-            formatData[formatDataPos] = '\0';
-
-            for (unsigned short i = 0; i < FORMATS; ++i) {
-              if (strcmp(formats[i], formatData) == 0) {
-                if (dataFormatType == -1) {
-                  dataFormatType = i;
-                  ownFormatType = i;
-                  isFormatStart = true;
-                } else if (dataFormatType == i) {
-                  isFormatEnd = true;
-                  doCloseFormat = true;
-                } else if (ownFormatType == -1) isFormatStart = true;
-                else if (ownFormatType == i) doCloseOwnFormat = true;
-
-                readerPos = formatReaderPos - 1;
-                cData->byteFormatting += formatDataPos - 1;
-                break;
-              }
-            }
-
-            break;
+            readerPos = entityReadPos;
+            continue;
           } else if (line[entityReadPos] != '\'') {
-            writerPos = 1;
+            readerPos = entityReadPos;
+
+            if (line[entityReadPos] == ' ') {
+              formatDataPos = readerPos;
+              while (line[formatDataPos] == ' ') {
+                ++formatDataPos;
+                ++spacesCount;
+              }
+
+              readerPos = formatDataPos - 1;
+              break;
+            }
+
             readerPos = entityReadPos - 1;
             break;
           }
-
-          // DEBUG: STRING to debug for line and position
-          // if (parserRunTimeData->currentLine == 764 && parserRunTimeData->currentPosition > 30) exit(1);
 
         } else {
           readData[writerPos] = readIn;
@@ -1245,18 +1237,16 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
       //printf("dcf %d | dcof %d | cw %d | iwt %d | dcwt %d | isent %d | wp %d\n", doCloseFormat, doCloseOwnFormat, createWord, isWikiTag, doCloseWikiTag, isEntity, writerPos);
       createWord = false;
       readData[writerPos] = '\0';
-
-
-
-      if (writerPos != 0) {
+      isAdded = false;
+      if (writerPos != 0 || isEntity) {
         unsigned int readerPosOffset = 0;
 
         if (ownFormatType != -1) {
-          readerPosOffset = strlen(formats[(int) dataFormatType]);
+          readerPosOffset = strlen(formats[(int) ownFormatType]);
         }
 
         #if DEBUG
-        printf("[DEBUG] LINE: %d | SPACING: %d/%d | WTD: %d | POS: %8d | READER: %8d | DATA: %5d", parserRunTimeData->currentLine, preSpacesCount, spacesCount, doCloseWikiTag ? wikiTagDepth + 1 : wikiTagDepth, parserRunTimeData->currentPosition, readerPos, writerPos);
+        printf("[DEBUG] LINE: %d | SPACING: %d/%d | WTD: %d | POS: %8d | READER: %8d | DATA: %5d", parserRunTimeData->currentLine, preSpacesCount, spacesCount, doCloseWikiTag ? wikiTagDepth + 1 : wikiTagDepth, parserRunTimeData->currentPosition, readerPos, isEntity ? entityWritePos : writerPos);
         #endif
 
         if (isWikiTag) {
@@ -1273,7 +1263,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           if (isFormatEnd) printf(" < isEnd");
           #endif
 
-          if (addWikiTag(0, xmlTag, readerPos + readerPosOffset, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, wikiTagType, preSpacesCount, spacesCount, readData, parserRunTimeData)) {
+          if (addWikiTag(0, xmlTag, (readerPos < writerPos ? writerPos : readerPos - writerPos) - readerPosOffset, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, wikiTagType, preSpacesCount, spacesCount, readData, parserRunTimeData)) {
             isAdded = true;
             ++cData->wikiTagCount;
           }
@@ -1293,10 +1283,10 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           #endif
 
           // TODO: Add entity handling routine
-          if (addEntity(0, xmlTag, readerPos + readerPosOffset, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, preSpacesCount, spacesCount, entityBuffer, parserRunTimeData)) {
+          if (addEntity(0, xmlTag, (readerPos < writerPos ? writerPos : readerPos - writerPos) - readerPosOffset, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, preSpacesCount, spacesCount, entityBuffer, parserRunTimeData)) {
             isAdded = true;
             ++cData->entityCount;
-            cData->byteEntites += writerPos;
+            cData->byteEntites += entityWritePos;
           }
 
           entityBuffer[0] = '\0';
@@ -1317,7 +1307,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           #endif
 
           // TODO: Think of "pre" and "/pre" as switch for nonformatting parts
-          if (addWord(0, xmlTag, readerPos + readerPosOffset, writerPos, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, preSpacesCount, spacesCount, readData, parserRunTimeData)) {
+          if (addWord(0, xmlTag, (readerPos < writerPos ? writerPos : readerPos - writerPos) - readerPosOffset, writerPos, dataFormatType, ownFormatType, isFormatStart, isFormatEnd, preSpacesCount, spacesCount, readData, parserRunTimeData)) {
             isAdded = true;
             ++cData->wordCount;
             cData->byteWords += writerPos;
@@ -1337,8 +1327,11 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         else printf("\n");
         #endif
 
+
         isFormatStart = false;
-        isAdded = false;
+        writerPos = 0;
+        spacesCount = 0;
+        preSpacesCount = 0;
       }
       //------------------------------------------------------------------------
 
@@ -1353,21 +1346,21 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         if (ownFormatType == dataFormatType) ownFormatType = -1;
 
         if (xmlTag->lastAddedType == 0) {
-          struct word* last = (struct word*) xmlTag->lastAddedElement;
+          struct word* last = &xmlTag->words[xmlTag->wordCount - 1];
           last->dataFormatType = dataFormatType;
           last->ownFormatType = ownFormatType;
           last->formatEnd = true;
           if (dataFormatType != -1) last->readerPos += strlen(formats[(int) dataFormatType]);
           if (ownFormatType != -1) last->readerPos += strlen(formats[(int) ownFormatType]);
         } else if (xmlTag->lastAddedType == 1) {
-          struct wikiTag* last = (struct wikiTag*) xmlTag->lastAddedElement;
+          struct wikiTag* last = &xmlTag->wikiTags[xmlTag->wTagCount - 1];
           last->dataFormatType = dataFormatType;
           last->ownFormatType = ownFormatType;
           last->formatEnd = true;
           if (dataFormatType != -1) last->readerPos += strlen(formats[(int) dataFormatType]);
           if (ownFormatType != -1) last->readerPos += strlen(formats[(int) ownFormatType]);
         } else if (xmlTag->lastAddedType == 2) {
-          struct entity* last = (struct entity*) xmlTag->lastAddedElement;
+          struct entity* last = &xmlTag->entities[xmlTag->entityCount - 1];
           last->dataFormatType = dataFormatType;
           last->ownFormatType = ownFormatType;
           last->formatEnd = true;
@@ -1385,11 +1378,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         ownFormatType = -1;
         doCloseOwnFormat = false;
       }
-
-      // NOTE: RESETS
-      writerPos = 0;
-      spacesCount = 0;
-      preSpacesCount = 0;
     }
 
   if (readIn == '<') return readerPos;
@@ -1407,7 +1395,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 //------------------------------------------------------------------------------
 
 
-bool addWikiTag(const short elementType, void *element, unsigned int readerPosInherited, const char dataFormatType, const char ownFormatType, const bool isFormatStart, const bool isFormatEnd, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const char *readData, struct parserBaseStore *parserRunTimeData) {
+bool addWikiTag(const short elementType, void *element, const unsigned int readerPosInherited, const char dataFormatType, const char ownFormatType, const bool isFormatStart, const bool isFormatEnd, const short wikiTagType, const unsigned char preSpacesCount, const unsigned char spacesCount, const char *readData, struct parserBaseStore *parserRunTimeData) {
 
   collectionStatistics* cData = parserRunTimeData->cData;
 
@@ -1419,10 +1407,12 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
     xmlTag = element;
     xmlTag->wikiTags = (wikiTag*) realloc(xmlTag->wikiTags, sizeof(wikiTag) * (xmlTag->wTagCount + 1));
     tag = &xmlTag->wikiTags[xmlTag->wTagCount];
+    ++xmlTag->wTagCount;
   } else {
     parentTag = element;
     parentTag->pipedTags = (wikiTag*) realloc(parentTag->pipedTags, sizeof(wikiTag) * (parentTag->wTagCount + 1));
     tag = &parentTag->pipedTags[parentTag->wTagCount];
+    ++parentTag->wTagCount;
   }
 
   tag->lineNum = parserRunTimeData->currentLine;
@@ -1433,16 +1423,23 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
   tag->formatEnd = isFormatEnd;
   tag->preSpacesCount = preSpacesCount;
   tag->spacesCount = spacesCount;
-  tag->readerPos = readerPosInherited;
+  tag->readerPos = readerPosInherited - preSpacesCount;
   tag->position = parserRunTimeData->currentPosition;
   tag->wordCount = 0;
   tag->wTagCount = 0;
   tag->entityCount = 0;
+  tag->tagLength = 0;
   tag->target = NULL;
   tag->wikiTagFileIndex = cData->wikiTagCount;
   tag->pipedWords = NULL;
   tag->pipedTags = NULL;
   tag->pipedEntities = NULL;
+
+  if (elementType == 0) {
+    if (xmlTag->firstAddedType == -1) xmlTag->firstAddedType = 1;
+    xmlTag->lastAddedType = 1;
+  }
+
 
   unsigned int dataLength = strlen(readData);
   #if DEBUG
@@ -1463,8 +1460,8 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
   char tmpChar = '\0';
 
   char formatData[64] = "\0";
-  unsigned short formatDataPos = 0;
-  unsigned short formatReaderPos = 0;
+  unsigned int formatDataPos = 0;
+  unsigned int formatReaderPos = 0;
   short dataFormatTypeInternal = -1;
   short ownFormatTypeInternal = -1;
   bool isFormatStartInternal = false;
@@ -1503,9 +1500,6 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             preSpacesCountInternal += 1;
           } else {
             spacesCountInternal += 1;
-          }
-
-          if (writerPos != 0) {
             createWord = true;
             break;
           }
@@ -1588,7 +1582,6 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             tag->target = malloc(sizeof(char) * (targetWritePos + 1));
             strcpy(tag->target, targetData);
             hasTargetData = true;
-            readerPosInherited = readerPos;
 
             //fprintf(parserRunTimeData->wtagFile, "%u|%d|%d|%d|%d|%d|%ld|%s\n", parserRunTimeData->currentLine, wikiTagType, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStart, isFormatEnd, strlen(tag->target), targetData);
             cData->byteWikiTags += targetWritePos;
@@ -1601,8 +1594,8 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
           }
 
           if (writerPos != 0) {
-            doCloseOwnFormat = true;
-            doCloseFormat = true;
+            if (ownFormatType != -1) doCloseOwnFormat = true;
+            if (dataFormatType != -1) doCloseFormat = true;
             createWord = true;
           }
           break;
@@ -1682,8 +1675,8 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
               continue;
             }
           }
-          parserData[writerPos] = readIn;
           if (tag->target == NULL && !hasTargetData) targetData[targetWritePos++] = readIn;
+          else parserData[writerPos] = readIn;
           ++writerPos;
           ++readerPos;
           continue;
@@ -1718,7 +1711,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
               break;
             }
 
-            if (readData[entityReadPos] != '\'' && readData[entityReadPos+1] != '\'') {
+            if (dataLength >= entityReadPos + 1 && readData[entityReadPos] != '\'' && readData[entityReadPos+1] != '\'') {
               writerPos = entityWritePos-1;
               readerPos += entityWritePos-1;
             } else {
@@ -1752,7 +1745,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
 
           if (isEntity) {
             #if DEBUG
-            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ ENTITY  ] => \"%s\"", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited + readerPos , entityBuffer);
+            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ ENTITY  ] => \"%s\"", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited + readerPos, entityBuffer);
 
             if (ownFormatTypeInternal != -1) printf(" => %s", formatNames[ownFormatTypeInternal]);
             if (dataFormatTypeInternal != -1) printf(" => %s", formatNames[dataFormatTypeInternal]);
@@ -1760,7 +1753,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             if (isFormatEndInternal) printf(" < isEnd");
             #endif
 
-            if (addEntity(1, tag, readerPosInherited + readerPos, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, preSpacesCountInternal, spacesCountInternal, entityBuffer, parserRunTimeData)) {
+            if (addEntity(1, tag, readerPosInherited + readerPos - entityReadPos - 1, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, preSpacesCountInternal, spacesCountInternal, entityBuffer, parserRunTimeData)) {
               isAdded = true;
               ++cData->entityCount;
               cData->byteEntites += writerPos;
@@ -1769,7 +1762,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             isEntity = false;
           } else if (isWikiTag) {
             #if DEBUG
-            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ WIKITAG ] => \"%s\" (%s)", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited + readerPos, parserData, wikiTagNames[tagType]);
+            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ WIKITAG ] => \"%s\" (%s)", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited - readerPos, parserData, wikiTagNames[tagType]);
 
             if (ownFormatTypeInternal != -1) printf(" => %s", formatNames[ownFormatTypeInternal]);
             if (dataFormatTypeInternal != -1) printf(" => %s", formatNames[dataFormatTypeInternal]);
@@ -1777,7 +1770,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             if (isFormatEndInternal) printf(" < isEnd");
             #endif
 
-            if (addWikiTag(1, tag, readerPosInherited + readerPos, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, tagType, preSpacesCountInternal, spacesCountInternal, parserData, parserRunTimeData)) {
+            if (addWikiTag(1, tag, readerPosInherited + readerPos - writerPos, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, tagType, preSpacesCountInternal, spacesCountInternal, parserData, parserRunTimeData)) {
               isAdded = true;
               ++cData->wikiTagCount;
             }
@@ -1791,7 +1784,7 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
             if (isFormatEndInternal) printf(" < isEnd");
             #endif
 
-            if (addWord(1, tag, readerPosInherited + readerPos, writerPos, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, preSpacesCountInternal, spacesCountInternal, parserData, parserRunTimeData)) {
+            if (addWord(1, tag, readerPosInherited + readerPos - writerPos, writerPos, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStartInternal, isFormatEndInternal, preSpacesCountInternal, spacesCountInternal, parserData, parserRunTimeData)) {
               isAdded = true;
               ++cData->wordCount;
               cData->byteWords += writerPos - 1;
@@ -1848,13 +1841,6 @@ bool addWikiTag(const short elementType, void *element, unsigned int readerPosIn
     cData->byteWikiTags += targetWritePos;
   }
 
-  if (elementType == 0) {
-    ++xmlTag->wTagCount;
-    if (xmlTag->firstAddedType == -1) xmlTag->firstAddedType = 1;
-    xmlTag->lastAddedType = 1;
-    xmlTag->lastAddedElement = &tag;
-  } else ++parentTag->wTagCount;
-
   // 0 WORD, 1 WIKITAG, 2 ENTITY
 
   return 1;
@@ -1886,14 +1872,13 @@ bool addEntity(const short elementType, void *element, const unsigned int reader
   tagEntity->preSpacesCount = preSpacesCount;
   tagEntity->spacesCount = spacesCount;
   tagEntity->position = parserRunTimeData->currentPosition;
-  tagEntity->readerPos = readerPos;
+  tagEntity->readerPos = readerPos - preSpacesCount;
   strcpy(tagEntity->data, entityBuffer);
 
   if (elementType == 0) {
     ++xmlTag->entityCount;
     if (xmlTag->firstAddedType == -1) xmlTag->firstAddedType = 2;
     xmlTag->lastAddedType = 2;
-    xmlTag->lastAddedElement = &tagEntity;
   } else ++tag->entityCount;
 
   return 1;
@@ -1922,7 +1907,7 @@ bool addWord(const short elementType, void *element, const unsigned int readerPo
   tagWord->ownFormatType = ownFormatType;
   tagWord->preSpacesCount = preSpacesCount;
   tagWord->spacesCount = spacesCount;
-  tagWord->readerPos = readerPos;
+  tagWord->readerPos = readerPos - preSpacesCount;
   tagWord->position = parserRunTimeData->currentPosition;
   tagWord->formatStart = isFormatStart;
   tagWord->formatEnd = isFormatEnd;
@@ -1933,7 +1918,6 @@ bool addWord(const short elementType, void *element, const unsigned int readerPo
     ++xmlTag->wordCount;
     if (xmlTag->firstAddedType == -1) xmlTag->firstAddedType = 0;
     xmlTag->lastAddedType = 0;
-    xmlTag->lastAddedElement = &tagWord;
   } else ++tag->wordCount;
 
   return 1;
@@ -1982,7 +1966,7 @@ bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *w
   struct entity* entityElement = NULL;
   struct wikiTag* wikiTagElement = NULL;
 
-  fprintf(parserRunTimeData->wtagFile, "%u|%u|%u|%d|%d|%d|%d|%d|%d|%d|%ld|%s\n",  wTag->position, wTag->lineNum, wTag->readerPos, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, strlen(wTag->target), wTag->target);
+  fprintf(parserRunTimeData->wtagFile, "%u|%u|%u|%d|%d|%d|%d|%d|%d|%d|%u|%ld|%s\n",  wTag->position, wTag->lineNum, wTag->readerPos, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->target);
 
   for (unsigned int k = 0; k < wTag->wordCount; ++k) {
     wordElement = &wTag->pipedWords[k];
