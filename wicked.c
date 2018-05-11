@@ -17,7 +17,7 @@
 #define DOWRITEOUT true
 //#define LINETOPROCESS 5000
 //#define LINETOPROCESS 1085
-//#define LINETOPROCESS 238
+//#define LINETOPROCESS 110
 #define LINETOPROCESS 0
 
 //#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
@@ -915,7 +915,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         tmpChar = line[readerPos + 1];
 
         if (tmpChar == readIn) {
-          if (writerPos != 0) {
+          if (writerPos != 0 && wikiTagDepth == 0) {
             createWord = true;
             --readerPos;
             break;
@@ -940,13 +940,24 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           for (unsigned short i = 0; i < TAGTYPES; ++i) {
             tagLength = strlen(tagTypes[i]);
             if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
+              if (wikiTagDepth != 0) {
+                ++wikiTagDepth;
+                ++readerPos;
+                break;
+              }
+              ++wikiTagDepth;
               wikiTagType = i;
               isWikiTag = true;
               cData->byteWikiTags += tagLength;
               ++readerPos;
-              ++wikiTagDepth;
               break;
             }
+          }
+
+          if (wikiTagDepth > 1) {
+            readData[writerPos] = readIn;
+            ++writerPos;
+            continue;
           }
 
           formatDataPos = 0;
@@ -978,6 +989,14 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           if (wikiTagDepth != 0) {
             --wikiTagDepth;
             cData->byteWikiTags += 2;
+
+            if (wikiTagDepth != 0) {
+              readData[writerPos++] = readIn;
+              readData[writerPos++] = readIn;
+              readerPos += 2;
+              continue;
+            }
+
             doCloseWikiTag = true;
 
             formatReaderPos = readerPos + 2;
@@ -990,7 +1009,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
             }
 
             if (formatDataPos > 1) {
-              readerPos += 2;
+              readerPos += formatDataPos;
               continue;
             }
 
@@ -1402,6 +1421,7 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
   wikiTag *tag = NULL;
   xmlNode *xmlTag = NULL;
   wikiTag *parentTag = NULL;
+  unsigned int dataLength = strlen(readData);
 
   if (elementType == 0) {
     xmlTag = element;
@@ -1423,12 +1443,12 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
   tag->formatEnd = isFormatEnd;
   tag->preSpacesCount = preSpacesCount;
   tag->spacesCount = spacesCount;
-  tag->readerPos = readerPosInherited - preSpacesCount;
+  tag->readerPos = readerPosInherited;
   tag->position = parserRunTimeData->currentPosition;
   tag->wordCount = 0;
   tag->wTagCount = 0;
   tag->entityCount = 0;
-  tag->tagLength = 0;
+  tag->tagLength = dataLength;
   tag->target = NULL;
   tag->wikiTagFileIndex = cData->wikiTagCount;
   tag->pipedWords = NULL;
@@ -1441,7 +1461,6 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
   }
 
 
-  unsigned int dataLength = strlen(readData);
   #if DEBUG
   printf("\n[DEBUG] PARSING WIKITAG @ LINE: %d  => \"%s\" (%s) \n", parserRunTimeData->currentLine, readData, wikiTagNames[wikiTagType]);
   #endif
@@ -1508,11 +1527,22 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
           continue;
         case ' ':
           if (tag->target == NULL && !hasTargetData) targetData[targetWritePos++] = readData[readerPos];
-        case '\0':
-          if (readIn != '\0') {
-            parserData[writerPos] = readData[readerPos];
+          else if (wikiTagDepth != 0) {
+            parserData[writerPos] = readIn;
             ++writerPos;
             ++readerPos;
+            continue;
+          } else if (writerPos != 0) {
+            createWord = true;
+            break;
+          }
+        case '\0':
+          if (readIn != '\0') {
+            if (writerPos != 0) {
+              parserData[writerPos] = readData[readerPos];
+              ++writerPos;
+              ++readerPos;
+            } else ++readerPos;
             continue;
           } else if (hasTargetData && writerPos != 0) {
             createWord = true;
@@ -1591,12 +1621,18 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
 
             writerPos = 0;
             parserData[0] = '\0';
+            break;
           }
 
-          if (writerPos != 0) {
+          if (wikiTagDepth == 0 && writerPos != 0) {
             if (ownFormatType != -1) doCloseOwnFormat = true;
             if (dataFormatType != -1) doCloseFormat = true;
             createWord = true;
+          } else if (wikiTagDepth != 0) {
+            parserData[writerPos] = readIn;
+            ++writerPos;
+            ++readerPos;
+            continue;
           }
           break;
         case '[':
@@ -1656,18 +1692,35 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
           tmpChar = readData[readerPos+1];
 
           if (tmpChar == readIn) {
-            if (wikiTagDepth != 0 && tagTypes[wikiTagType][0] == readIn && tagTypes[wikiTagType][1] == readIn) {
+            if (wikiTagDepth != 0) {
               --wikiTagDepth;
               ++readerPos;
               doCloseWikiTag = true;
-              if (wikiTagDepth == 0) {
-                if (dataFormatType != -1) doCloseFormat = true;
-                if (ownFormatType != -1) doCloseOwnFormat = true;
+
+              formatReaderPos = readerPos + 1;
+              formatDataPos = 0;
+
+              while (readData[formatReaderPos] == '\'') {
+                formatData[formatDataPos] = readData[formatReaderPos];
+                ++formatDataPos;
+                ++formatReaderPos;
               }
+
+              if (formatDataPos > 1) {
+                ++readerPos;
+                continue;
+                break;
+              }
+
+              if (dataFormatType != -1) doCloseFormat = true;
+              if (ownFormatType != -1) doCloseOwnFormat = true;
+
+
               break;
             } else {
               if (writerPos != 0) {
                 createWord = true;
+                --readerPos;
                 break;
               }
 
@@ -1762,7 +1815,7 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
             isEntity = false;
           } else if (isWikiTag) {
             #if DEBUG
-            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ WIKITAG ] => \"%s\" (%s)", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited - readerPos, parserData, wikiTagNames[tagType]);
+            printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ WIKITAG ] => \"%s\" (%s)", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited + readerPos, parserData, wikiTagNames[tagType]);
 
             if (ownFormatTypeInternal != -1) printf(" => %s", formatNames[ownFormatTypeInternal]);
             if (dataFormatTypeInternal != -1) printf(" => %s", formatNames[dataFormatTypeInternal]);
