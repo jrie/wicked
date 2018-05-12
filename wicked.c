@@ -18,11 +18,13 @@
 //#define LINETOPROCESS 5000
 //#define LINETOPROCESS 1085
 //#define LINETOPROCESS 110
+//#define LINETOPROCESS 128
+//#define LINETOPROCESS 861531
 #define LINETOPROCESS 0
 
 //#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
-#define SOURCEFILE "data/enwik8_small"
-//#define SOURCEFILE "data/enwik8"
+//#define SOURCEFILE "data/enwik8_small"
+#define SOURCEFILE "data/enwik8"
 
 #define DICTIONARYFILE "words.txt"
 #define WIKITAGSFILE "wikitags.txt"
@@ -161,6 +163,7 @@ typedef struct parserBaseStore {
   FILE* entitiesFile;
   unsigned int currentPosition;
   unsigned int currentLine;
+  bool isMathSection;
   struct xmlDataCollection* xmlCollection;
   struct collectionStatistics* cData;
 } parserBaseStore;
@@ -552,6 +555,7 @@ int main(int argc, char *argv[]) {
   parserRunTimeData.cData = &cData;
   parserRunTimeData.currentPosition = 0;
   parserRunTimeData.currentLine = 1;
+  parserRunTimeData.isMathSection = false;
 
   //----------------------------------------------------------------------------
   // Parser start
@@ -603,7 +607,7 @@ int main(int argc, char *argv[]) {
   long int durSeconds = (duration % 3600) % 60;
   printf("\n\n[STATUS] RUN TIME FOR PARSING PROCESS: %ldh %ldm %lds\n", durHours, durMinutes, durSeconds);
   printf("[REPORT] PARSED LINES : %d | FAILED ELEMENTS: %d\n", parserRunTimeData.currentLine, cData.failedElements);
-  printf("[REPORT] FILE STATISTICS\nKEYS       : %16d [~ %.3lf MB]\nVALUES     : %16d [~ %.3lf MB]\nWORDS      : %16d [~ %.3lf MB]\nENTITIES   : %16d [~ %.3lf MB]\nWIKITAGS   : %16d [~ %.3lf MB]\nWHITESPACE : %16d [~ %.3lf MB]\nFORMATTING : [~ %.3lf MB]\n\nTOTAL COLLECTED DATA : ~%.3lf MB (~%.3lf MB xml name and closing)\n", cData.keyCount, cData.byteKeys / 1000000.0, cData.valueCount, cData.byteValues / 1000000.0, cData.wordCount, cData.byteWords / 1000000.0, cData.entityCount, cData.byteEntites / 1000000.0, cData.wikiTagCount, cData.byteWikiTags / 1000000.0, cData.byteWhitespace, cData.byteWhitespace / 1000000.0, cData.byteFormatting / 1000000.0, (cData.byteKeys + cData.byteValues + cData.byteWords + cData.byteEntites + cData.byteWikiTags + cData.byteWhitespace + cData.byteFormatting + cData.bytePreWhiteSpace + cData.byteNewLine + cData.byteXMLsaved) / 1000000.0, cData.byteXMLsaved / 1000000.0);
+  printf("[REPORT] FILE STATISTICS\nXML TAG    : %16d [~ %.3lf MB]\nKEYS       : %16d [~ %.3lf MB]\nVALUES     : %16d [~ %.3lf MB]\nWORDS      : %16d [~ %.3lf MB]\nENTITIES   : %16d [~ %.3lf MB]\nWIKITAGS   : %16d [~ %.3lf MB]\nWHITESPACE : %16d [~ %.3lf MB]\nNEWLINE    : %16d [~ %.3lf MB]\nFORMATTING : [~ %.3lf MB]\n\nTOTAL COLLECTED DATA : ~%.3lf MB\n", xmlCollection.count, cData.byteXMLsaved / 1000000.0, cData.keyCount, cData.byteKeys / 1000000.0, cData.valueCount, cData.byteValues / 1000000.0, cData.wordCount, cData.byteWords / 1000000.0, cData.entityCount, cData.byteEntites / 1000000.0, cData.wikiTagCount, cData.byteWikiTags / 1000000.0, cData.byteWhitespace, cData.byteWhitespace / 1000000.0, cData.byteNewLine, cData.byteNewLine / 1000000.0, cData.byteFormatting / 1000000.0, (cData.byteKeys + cData.byteValues + cData.byteWords + cData.byteEntites + cData.byteWikiTags + cData.byteWhitespace + cData.byteFormatting + cData.bytePreWhiteSpace + cData.byteNewLine + cData.byteXMLsaved) / 1000000.0);
   printf("TOTAL FILE SIZE: ~%.3lf MB\n\n", ftell(inputFile) / 1000000.0);
   fclose(inputFile);
 
@@ -907,64 +911,127 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         }
 
         break;
+      case '\\':
+        // NOTE: Are the" \begin" and "\end" tags are only used for math inside text elements?
+        if (readerPos + 6 <= lineLength) {
+          tmpChar = tolower(line[readerPos + 1]);
+          if (tmpChar == 'm' || tmpChar == 'b' || tmpChar == 'e') {
+            formatData[0] = tmpChar;
+            formatDataPos = 1;
+            while (formatDataPos < 6) {
+              if (readerPos + formatDataPos + 1 > lineLength) break;
+              formatData[formatDataPos] = tolower(line[readerPos + formatDataPos + 1]);
+              ++formatDataPos;
+            }
+
+            formatData[formatDataPos - 1] = '\0';
+
+            // TODO: Think about, if "\begin" and "\end" are found - should this be filtered out and be stored as information to the "words" file? Or should this only be used to avoid creating wikitags?
+            if (!parserRunTimeData->isMathSection && (strncmp(formatData, "math", 4) == 0 || strcmp(formatData, "begin") == 0)) {
+              parserRunTimeData->isMathSection = true;
+              #if DEBUG || BEVERBOSE
+              printf("[INFO ] LINE: %d | READER: %d => MATH SECTION START\n", parserRunTimeData->currentLine, readerPos);
+              #endif
+            } else if (tmpChar == 'e' && parserRunTimeData->isMathSection && strncmp(formatData, "end", 3) == 0) {
+              parserRunTimeData->isMathSection = false;
+              #if DEBUG || BEVERBOSE
+              printf("[INFO ] LINE: %d | READER: %d => MATH SECTION END\n", parserRunTimeData->currentLine, readerPos);
+              #endif
+            }
+          }
+        }
+
+        readData[writerPos] = readIn;
+        ++writerPos;
+        ++readerPos;
+        continue;
+        break;
+      case '/':
+        // NOTE: Are the" \begin" and "\end" tags are only used for math inside text elements?
+        if (parserRunTimeData->isMathSection && readerPos + 3 <= lineLength) {
+          tmpChar = tolower(line[readerPos + 1]);
+          if (tmpChar == 'm' || tmpChar == 'e') {
+            formatData[0] = tmpChar;
+            formatDataPos = 1;
+            while (formatDataPos < 5) {
+              if (readerPos + formatDataPos + 1 > lineLength) break;
+              formatData[formatDataPos] = tolower(line[readerPos + formatDataPos + 1]);
+              ++formatDataPos;
+            }
+
+            formatData[formatDataPos - 1] = '\0';
+
+            // TODO: Think about, if "\begin" and "\end" are found - should this be filtered out and be stored as information to the "words" file? Or should this only be used to avoid creating wikitags?
+            if (strcmp(formatData, "math") == 0 || strncmp(formatData, "end", 3) == 0) {
+              parserRunTimeData->isMathSection = false;
+              #if DEBUG || BEVERBOSE
+              printf("[INFO ] LINE: %d | READER: %d => MATH SECTION END\n", parserRunTimeData->currentLine, readerPos);
+              #endif
+            }
+          }
+        }
+
+        readData[writerPos] = readIn;
+        ++writerPos;
+        ++readerPos;
+        continue;
+        break;
+        break;
       case '<':
         createWord = true;
         break;
       case '[':
       case '{':
-        tmpChar = line[readerPos + 1];
+        if (!parserRunTimeData->isMathSection && readerPos + 1 <= lineLength) {
+          tmpChar = line[readerPos + 1];
 
-        if (tmpChar == readIn) {
-          if (writerPos != 0 && wikiTagDepth == 0) {
-            createWord = true;
-            --readerPos;
-            break;
-          }
+          if (tmpChar == readIn) {
+            if (writerPos != 0 && wikiTagDepth == 0) {
+              createWord = true;
+              --readerPos;
+              break;
+            }
 
-          formatReaderPos = readerPos;
-          formatDataPos = 0;
+            formatReaderPos = readerPos;
+            formatDataPos = 0;
 
-          tmpChar = line[formatReaderPos];
-          do {
             tmpChar = line[formatReaderPos];
-            formatData[formatDataPos] = tolower(tmpChar);
+            do {
+              tmpChar = line[formatReaderPos];
+              formatData[formatDataPos] = tolower(tmpChar);
 
-            ++formatDataPos;
-            ++formatReaderPos;
-            if (formatDataPos == 22) break;
-          } while (tmpChar != ' ' && tmpChar != ':');
+              ++formatDataPos;
+              ++formatReaderPos;
+              if (formatDataPos == 22) break;
+            } while (tmpChar != ' ' && tmpChar != ':');
 
-          formatData[formatDataPos] = '\0';
+            formatData[formatDataPos] = '\0';
 
-          short tagLength = 0;
-          for (unsigned short i = 0; i < TAGTYPES; ++i) {
-            tagLength = strlen(tagTypes[i]);
-            if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
-              if (wikiTagDepth != 0) {
+            short tagLength = 0;
+            for (unsigned short i = 0; i < TAGTYPES; ++i) {
+              tagLength = strlen(tagTypes[i]);
+              if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
+                if (wikiTagDepth != 0) {
+                  ++wikiTagDepth;
+                  ++readerPos;
+                  break;
+                }
                 ++wikiTagDepth;
+                wikiTagType = i;
+                isWikiTag = true;
+                cData->byteWikiTags += tagLength;
                 ++readerPos;
                 break;
               }
-              ++wikiTagDepth;
-              wikiTagType = i;
-              isWikiTag = true;
-              cData->byteWikiTags += tagLength;
-              ++readerPos;
-              break;
             }
-          }
 
-          if (wikiTagDepth > 1) {
-            readData[writerPos] = readIn;
-            ++writerPos;
-            continue;
-          }
+            if (wikiTagDepth > 1) {
+              readData[writerPos] = readIn;
+              ++writerPos;
+              continue;
+            }
 
-          formatDataPos = 0;
-          formatData[0] = '\0';
-
-          if (isWikiTag) {
-            break;
+            if (isWikiTag) break;
           }
         }
 
@@ -975,46 +1042,48 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         break;
       case ']':
       case '}':
-        tmpChar = line[readerPos+1];
+        if (!parserRunTimeData->isMathSection && readerPos + 1 <= lineLength) {
+          tmpChar = line[readerPos + 1];
 
-        if (tmpChar == readIn) {
-          if (writerPos != 0) {
-            if (!isWikiTag) {
-              createWord = true;
-              --readerPos;
-              break;
+          if (tmpChar == readIn) {
+            if (writerPos != 0) {
+              if (!isWikiTag) {
+                createWord = true;
+                --readerPos;
+                break;
+              }
             }
-          }
-
-          if (wikiTagDepth != 0) {
-            --wikiTagDepth;
-            cData->byteWikiTags += 2;
 
             if (wikiTagDepth != 0) {
-              readData[writerPos++] = readIn;
-              readData[writerPos++] = readIn;
-              readerPos += 2;
-              continue;
+              --wikiTagDepth;
+              cData->byteWikiTags += 2;
+
+              if (wikiTagDepth != 0) {
+                readData[writerPos++] = readIn;
+                readData[writerPos++] = readIn;
+                readerPos += 2;
+                continue;
+              }
+
+              doCloseWikiTag = true;
+
+              formatReaderPos = readerPos + 2;
+              formatDataPos = 0;
+
+              while (line[formatReaderPos] == '\'') {
+                formatData[formatDataPos] = line[formatReaderPos];
+                ++formatDataPos;
+                ++formatReaderPos;
+              }
+
+              if (formatDataPos > 1) {
+                readerPos += formatDataPos;
+                continue;
+              }
+
+              ++readerPos;
+              break;
             }
-
-            doCloseWikiTag = true;
-
-            formatReaderPos = readerPos + 2;
-            formatDataPos = 0;
-
-            while (line[formatReaderPos] == '\'') {
-              formatData[formatDataPos] = line[formatReaderPos];
-              ++formatDataPos;
-              ++formatReaderPos;
-            }
-
-            if (formatDataPos > 1) {
-              readerPos += formatDataPos;
-              continue;
-            }
-
-            ++readerPos;
-            break;
           }
         }
 
@@ -1544,7 +1613,9 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
               ++readerPos;
             } else ++readerPos;
             continue;
-          } else if (hasTargetData && writerPos != 0) {
+          }
+
+          if (hasTargetData && writerPos != 0) {
             createWord = true;
           }
           break;
@@ -1637,47 +1708,45 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
           break;
         case '[':
         case '{':
-          tmpChar = readData[readerPos+1];
+          if (readerPos + 1 <= dataLength) {
+            tmpChar = readData[readerPos + 1];
 
-          if (tmpChar == readIn) {
-            if (writerPos != 0) {
-              createWord = true;
-              --readerPos;
-              break;
-            }
-
-            formatReaderPos = readerPos;
-            formatDataPos = 0;
-
-            do {
-              tmpChar = readData[formatReaderPos];
-              formatData[formatDataPos] = tolower(tmpChar);
-
-              ++formatDataPos;
-              ++formatReaderPos;
-              if (formatDataPos == 22) break;
-            } while (tmpChar != ' ' && tmpChar != ':');
-
-            formatData[formatDataPos] = '\0';
-
-            short tagLength = 0;
-            for (unsigned short i = 0; i < TAGTYPES; ++i) {
-              tagLength = strlen(tagTypes[i]);
-              if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
-                tagType = i;
-                isWikiTag = true;
-                cData->byteFormatting += tagLength;
-                ++readerPos;
-                ++wikiTagDepth;
+            if (tmpChar == readIn) {
+              if (writerPos != 0) {
+                createWord = true;
+                --readerPos;
                 break;
               }
-            }
 
-            formatDataPos = 0;
-            formatData[0] = '\0';
+              formatReaderPos = readerPos;
+              formatDataPos = 0;
+              formatData[0] = '\0';
 
-            if (isWikiTag) {
-              break;
+              do {
+                tmpChar = readData[formatReaderPos];
+                formatData[formatDataPos] = tolower(tmpChar);
+
+                ++formatDataPos;
+                ++formatReaderPos;
+                if (formatDataPos == 22) break;
+              } while (tmpChar != ' ' && tmpChar != ':');
+
+              formatData[formatDataPos] = '\0';
+
+              short tagLength = 0;
+              for (unsigned short i = 0; i < TAGTYPES; ++i) {
+                tagLength = strlen(tagTypes[i]);
+                if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
+                  tagType = i;
+                  isWikiTag = true;
+                  cData->byteFormatting += tagLength;
+                  ++readerPos;
+                  ++wikiTagDepth;
+                  break;
+                }
+              }
+
+              if (isWikiTag) break;
             }
           }
 
@@ -1689,36 +1758,34 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
           break;
         case ']':
         case '}':
-          tmpChar = readData[readerPos+1];
+          if (readerPos + 1 <= dataLength) {
+            tmpChar = readData[readerPos + 1];
 
-          if (tmpChar == readIn) {
-            if (wikiTagDepth != 0) {
-              --wikiTagDepth;
-              ++readerPos;
-              doCloseWikiTag = true;
-
-              formatReaderPos = readerPos + 1;
-              formatDataPos = 0;
-
-              while (readData[formatReaderPos] == '\'') {
-                formatData[formatDataPos] = readData[formatReaderPos];
-                ++formatDataPos;
-                ++formatReaderPos;
-              }
-
-              if (formatDataPos > 1) {
+            if (tmpChar == readIn) {
+              if (wikiTagDepth != 0) {
+                --wikiTagDepth;
                 ++readerPos;
-                continue;
+                doCloseWikiTag = true;
+
+                formatReaderPos = readerPos + 1;
+                formatDataPos = 0;
+
+                while (readData[formatReaderPos] == '\'') {
+                  formatData[formatDataPos] = readData[formatReaderPos];
+                  ++formatDataPos;
+                  ++formatReaderPos;
+                }
+
+                if (formatDataPos > 1) {
+                  readerPos = formatReaderPos;
+                  continue;
+                  break;
+                }
+
+                if (dataFormatType != -1) doCloseFormat = true;
+                if (ownFormatType != -1) doCloseOwnFormat = true;
                 break;
-              }
-
-              if (dataFormatType != -1) doCloseFormat = true;
-              if (ownFormatType != -1) doCloseOwnFormat = true;
-
-
-              break;
-            } else {
-              if (writerPos != 0) {
+              } else if (writerPos != 0) {
                 createWord = true;
                 --readerPos;
                 break;
@@ -1728,8 +1795,9 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
               continue;
             }
           }
+
           if (tag->target == NULL && !hasTargetData) targetData[targetWritePos++] = readIn;
-          else parserData[writerPos] = readIn;
+          parserData[writerPos] = readIn;
           ++writerPos;
           ++readerPos;
           continue;
