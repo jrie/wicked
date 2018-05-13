@@ -6,16 +6,15 @@ from string import ascii_letters
 from math import floor
 
 # Constants
-LINESTOPROCESS = 5000
-LINESTOPROCESS = 1085
-LINESTOPROCESS = 238
+#LINESTOPROCESS = 5000
+#LINESTOPROCESS = 1085
 LINESTOPROCESS = 0
 PRINTWIKI = False
 PRINTWORD = False
 PRINTENTITY = False
-PRINTWIKI = True
-#PRINTENTITY = True
+#PRINTWIKI = True
 #PRINTWORD = True
+#PRINTENTITY = True
 DOSAVE = True
 
 FINDTOLERANCE = 2
@@ -31,6 +30,7 @@ entityPath = 'entities.txt'
 """
 wikiTagPath = 'data/wikitags.txt'
 xmlTagPath = 'data/xmltags.txt'
+
 wordPath = 'data/words.txt'
 entityPath = 'data/entities.txt'
 """
@@ -44,8 +44,9 @@ tagOpeningsReal = ['{{', '{|', '[[']
 tagClosings = ['}}', '|}',  ']]']
 tagClosingsReal = ['}}', '|}',  ']]']
 #cleanupSequences = ['|', '}', ']', '{', '[']
-cleanupSequences = ['|']
+cleanupSequences = ['}}', ']]', '\'']
 tagTypes = [
+    'math'
     '',
     '',
     'category:',
@@ -55,7 +56,7 @@ tagTypes = [
     'sound:',
     'wiktionary:',
     'wikipedia:',
-    ''
+    '',
 ]
 
 for index, value in enumerate(formats):
@@ -85,7 +86,7 @@ with open(srcFilePath, 'r') as srcFile:
 
 #-------------------------------------------------------------------------------
 def removeWikiTags(srcLineData):
-    print('\n\nRemoving wiki tags...')
+    print('\n\nRemoving wikitags...')
 
     divider = '#' * 30
     divider3 = '-' * 15
@@ -95,8 +96,20 @@ def removeWikiTags(srcLineData):
 
     with open(wikiTagPath, 'r') as wikitagFile:
         x = 0
-        for x, line in enumerate(wikitagFile):
-            continue
+        line = ''
+        try:
+            for x, line in enumerate(wikitagFile):
+                continue
+        except UnicodeDecodeError as e:
+            print(e)
+            print(e.start)
+            print(e.end)
+            print(e.reason)
+            print(e.args)
+            print(line.split('|', 12)[11])
+            print(x)
+            print(line)
+            exit()
 
         onePercent = floor(x / 100.0)
         if onePercent == 0: onePercent = 1
@@ -150,12 +163,12 @@ def removeWikiTags(srcLineData):
                 preRegEx1.append('[\s]{'+str(preSpacesCount)+'}')
                 lengthEx1 += preSpacesCount
 
-            if tagType == 0:
+            if tagType == 0 or tagType == 1:
                 preRegEx1.append(tagOpenings[0])
                 preRegEx2.append(tagClosings[0])
                 lengthEx1 += len(tagOpeningsReal[0])
                 lengthEx2 += len(tagClosingsReal[0])
-            elif tagType == 1:
+            elif tagType == 2:
                 preRegEx1.append(tagOpenings[1])
                 preRegEx2.append(tagClosings[1])
                 lengthEx1 += len(tagOpeningsReal[1])
@@ -195,10 +208,11 @@ def removeWikiTags(srcLineData):
 
             hasReplaced = False
             for match in finditer(regExString,workLine):
-                workLine = regExString.sub(' ' * lengthEx1, workLine, 1)
+                srcLineData[lineNum] = regExString.sub(' ' * lengthEx1, workLine, 1)
                 hasReplaced = True
                 break
 
+            workLine = srcLineData[lineNum]
             if not hasReplaced:
                 if preSpacesCount != 0:
                     needle = r'[\s]{'+str(preSpacesCount)+r'}'
@@ -226,15 +240,10 @@ def removeWikiTags(srcLineData):
 
             for match in finditer(regExString2, workLine):
                 findSpot = match.span()
-                if lineNum + 1 == LINESTOPROCESS:
-                    print(lineData)
-                    print(findSpot)
-                    exit()
-                if readerPos + tagLength <= findSpot[0] :
+                if readerPos + tagLength - 2 <= findSpot[1] + FINDTOLERANCE:
                     srcLineData[lineNum] = workLine[:findSpot[0]] + (' ' * lengthEx2)+ workLine[findSpot[1]:]
                     #srcLineData[lineNum] = regExString2.sub(' ' * lengthEx2, workLine, 1)
                     break
-
 
             if LINESTOPROCESS != 0 and lineNum + 1 == LINESTOPROCESS and PRINTWIKI:
                 print(divider3)
@@ -273,11 +282,12 @@ def removeXMLTags(srcLineData):
             isDataNode = int(lineData[3])
             tagName = escape(lineData[4])
 
-            if LINESTOPROCESS != 0 and start > LINESTOPROCESS:
+            if LINESTOPROCESS != 0 and start >= LINESTOPROCESS:
                 purge()
                 return srcLineData
 
             workLine = srcLineData[start]
+
             regExString = compile(r'<'+tagName+r'[^>]{0,}>')
             srcLineData[start] = sub(regExString, ' ', workLine, 1).lstrip()
 
@@ -406,6 +416,7 @@ def removeWords(srcLineData):
                 print(regExString.pattern)
                 print(divider3)
                 print(workLine)
+                print(readerPos)
 
             hasReplaced = False
             for match in finditer(regExString, workLine):
@@ -722,7 +733,7 @@ srcLineData = removeXMLTags(srcLineData)
 srcLineData = removeWikiTags(srcLineData)
 srcLineData = removeWords(srcLineData)
 srcLineData = removeEntities(srcLineData)
-srcLineData = cleanupLeftOver(srcLineData)
+#srcLineData = cleanupLeftOver(srcLineData)
 outputData = mergeWhiteSpace(srcLineData)
 reportOrphands(outputData[0], outputData[1])
 #writeShadowData(outputData[0], outputData[1])
