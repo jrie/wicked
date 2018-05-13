@@ -22,9 +22,9 @@
 //#define LINETOPROCESS 861531
 #define LINETOPROCESS 0
 
+#define SOURCEFILE "data/enwik8_small"
+//#define SOURCEFILE "data/enwik8"
 //#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
-//#define SOURCEFILE "data/enwik8_small"
-#define SOURCEFILE "data/enwik8"
 
 #define DICTIONARYFILE "words.txt"
 #define WIKITAGSFILE "wikitags.txt"
@@ -45,8 +45,9 @@
 #define ENTITIES 211
 #define INDENTS 3
 #define TEMPLATES 11
-#define TAGTYPES 10
+#define TAGTYPES 11
 #define TAGCLOSINGS 3
+#define MATHTAG 0
 
 //------------------------------------------------------------------------------
 
@@ -228,6 +229,7 @@ const char templates[TEMPLATES][18] = {
 };
 
 const char wikiTagNames[TAGTYPES][19] = {
+  "Math type",
   "Definition/Anchor",
   "Table",
   "Category",
@@ -242,6 +244,7 @@ const char wikiTagNames[TAGTYPES][19] = {
 
 const char tagTypes[TAGTYPES][18] = {
   // NOTE: Handle definitions after, in case we threat, templates too
+  "{{math", // https://en.wikipedia.org/wiki/Wikipedia:Rendering_math
   "{{", // Definition => {{Main|autistic savant}}
   "{|", // Table start => ! (headline), |- (seperation, row/border), | "entry/ column data"
   "[[category:",
@@ -601,6 +604,8 @@ int main(int argc, char *argv[]) {
     ++parserRunTimeData.currentLine;
   }
 
+  --parserRunTimeData.currentLine;
+
   long int duration = difftime(time(NULL), startTime);
   long int durHours = floor(duration / 3600);
   long int durMinutes = floor((duration % 3600) / 60);
@@ -843,8 +848,8 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
   unsigned int writerPos = 0;
 
   char formatData[lineLength];
-  unsigned short formatReaderPos = 0;
-  unsigned short formatDataPos = 0;
+  unsigned int formatReaderPos = 0;
+  unsigned int formatDataPos = 0;
   char dataFormatType = -1;
   char ownFormatType = -1;
   bool isFormatStart = false;
@@ -1002,7 +1007,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 
               ++formatDataPos;
               ++formatReaderPos;
-              if (formatDataPos == 22) break;
+              if (formatDataPos == 20) break;
             } while (tmpChar != ' ' && tmpChar != ':');
 
             formatData[formatDataPos] = '\0';
@@ -1018,6 +1023,9 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
                 }
                 ++wikiTagDepth;
                 wikiTagType = i;
+
+                if (wikiTagType == MATHTAG) parserRunTimeData->isMathSection = true;
+
                 isWikiTag = true;
                 cData->byteWikiTags += tagLength;
                 ++readerPos;
@@ -1266,7 +1274,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         }
 
         if (isEntity) {
-          entityBuffer[entityWritePos] = '\0';
 
           if (writerPos != 0) {
             createWord = true;
@@ -1275,19 +1282,56 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
             break;
           }
 
+          entityBuffer[entityWritePos] = '\0';
 
-          if (line[entityReadPos] != '\'' && line[entityReadPos+1] != '\'') {
-            readerPos = entityReadPos - 1;
-            break;
-          } else if (line[entityReadPos] == '\'' && line[entityReadPos+1] == '\'') {
-            if (dataFormatType == -1) {
+          if (!parserRunTimeData->isMathSection && line[entityReadPos] == 'm' && entityReadPos + 4 <= lineLength && strcmp(entityBuffer, "&lt;") == 0) {
+            formatDataPos = 0;
+            while (formatDataPos < 5) {
+              formatData[formatDataPos] = tolower(line[entityReadPos + formatDataPos]);
+              ++formatDataPos;
+            }
+
+            formatData[formatDataPos - 1] = '\0';
+
+            // TODO: Think about, if "\begin" and "\end" are found - should this be filtered out and be stored as information to the "words" file? Or should this only be used to avoid creating wikitags?
+            if (strcmp(formatData, "math") == 0) {
+              parserRunTimeData->isMathSection = true;
+              #if DEBUG || BEVERBOSE
+              printf("[INFO ] LINE: %d | READER: %d => MATH SECTION START\n", parserRunTimeData->currentLine, readerPos);
+              #endif
+            }
+          }
+
+          if (entityReadPos + 1 <= lineLength) {
+            if (line[entityReadPos] != '\'' && line[entityReadPos + 1] != '\'') {
+              readerPos = entityReadPos - 1;
+              break;
+            } else if (lineLength && line[entityReadPos] == '\'' && line[entityReadPos + 1] == '\'') {
+              if (dataFormatType == -1) {
+                readerPos = entityReadPos - 1;
+                break;
+              }
+
+              readerPos = entityReadPos;
+              continue;
+            } else if (entityReadPos <= lineLength && line[entityReadPos] != '\'') {
+              readerPos = entityReadPos;
+
+              if (line[entityReadPos] == ' ') {
+                formatDataPos = readerPos;
+                while (line[formatDataPos] == ' ') {
+                  ++formatDataPos;
+                  ++spacesCount;
+                }
+
+                readerPos = formatDataPos - 1;
+                break;
+              }
+
               readerPos = entityReadPos - 1;
               break;
             }
-
-            readerPos = entityReadPos;
-            continue;
-          } else if (line[entityReadPos] != '\'') {
+          } else if (entityReadPos <= lineLength && line[entityReadPos] != '\'') {
             readerPos = entityReadPos;
 
             if (line[entityReadPos] == ' ') {
@@ -1304,7 +1348,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
             readerPos = entityReadPos - 1;
             break;
           }
-
         } else {
           readData[writerPos] = readIn;
           ++writerPos;
@@ -1712,11 +1755,22 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
             tmpChar = readData[readerPos + 1];
 
             if (tmpChar == readIn) {
+
+              if (tmpChar == '{' && parserRunTimeData->isMathSection) {
+                ++wikiTagDepth;
+
+                parserData[writerPos] = readIn;
+                ++writerPos;
+                ++readerPos;
+                continue;
+              }
+
               if (writerPos != 0) {
                 createWord = true;
                 --readerPos;
                 break;
               }
+
 
               formatReaderPos = readerPos;
               formatDataPos = 0;
@@ -1737,11 +1791,11 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
               for (unsigned short i = 0; i < TAGTYPES; ++i) {
                 tagLength = strlen(tagTypes[i]);
                 if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
-                  tagType = i;
-                  isWikiTag = true;
-                  cData->byteFormatting += tagLength;
-                  ++readerPos;
-                  ++wikiTagDepth;
+                    tagType = i;
+                    isWikiTag = true;
+                    cData->byteFormatting += tagLength;
+                    ++readerPos;
+                    ++wikiTagDepth;
                   break;
                 }
               }
@@ -1764,6 +1818,14 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
             if (tmpChar == readIn) {
               if (wikiTagDepth != 0) {
                 --wikiTagDepth;
+
+                if (tmpChar == '}' && parserRunTimeData->isMathSection) {
+                  parserData[writerPos] = readIn;
+                  ++writerPos;
+                  ++readerPos;
+                  continue;
+                }
+
                 ++readerPos;
                 doCloseWikiTag = true;
 
