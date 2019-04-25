@@ -13,7 +13,7 @@
 
 // Switches
 #define BEVERBOSE false
-#define DEBUG true
+#define DEBUG false
 #define DOWRITEOUT true
 //#define LINETOPROCESS 5000
 //#define LINETOPROCESS 1085
@@ -22,13 +22,14 @@
 //#define LINETOPROCESS 861531
 #define LINETOPROCESS 0
 
-#define SOURCEFILE "data/enwik8_small"
+//#define SOURCEFILE "data/enwik8_small"
 //#define SOURCEFILE "data/enwik8"
-//#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
+#define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 
 #define DICTIONARYFILE "words.txt"
 #define WIKITAGSFILE "wikitags.txt"
 #define XMLTAGFILE "xmltags.txt"
+#define XMLDATAFILE "xmldata.txt"
 #define ENTITIESFILE "entities.txt"
 /*
 #define DICTIONARYFILE "data/words.txt"
@@ -161,6 +162,7 @@ typedef struct parserBaseStore {
   FILE* dictFile;
   FILE* wtagFile;
   FILE* xmltagFile;
+  FILE* xmldataFile;
   FILE* entitiesFile;
   unsigned int currentPosition;
   unsigned int currentLine;
@@ -517,16 +519,19 @@ int main(int argc, char *argv[]) {
   FILE *dictFile = NULL;
   FILE *wtagFile = NULL;
   FILE *xmltagFile = NULL;
+  FILE *xmldataFile = NULL;
   FILE *entitiesFile = NULL;
 
   if (DOWRITEOUT) {
     remove(DICTIONARYFILE);
     remove(WIKITAGSFILE);
     remove(XMLTAGFILE);
+    remove(XMLDATAFILE);
     remove(ENTITIESFILE);
     dictFile = fopen(DICTIONARYFILE, "w");
     wtagFile = fopen(WIKITAGSFILE, "w");
     xmltagFile = fopen(XMLTAGFILE, "w");
+    xmldataFile = fopen(XMLDATAFILE, "w");
     entitiesFile = fopen(ENTITIESFILE, "w");
   }
 
@@ -553,6 +558,7 @@ int main(int argc, char *argv[]) {
   parserRunTimeData.dictFile = dictFile;
   parserRunTimeData.wtagFile = wtagFile;
   parserRunTimeData.xmltagFile = xmltagFile;
+  parserRunTimeData.xmldataFile = xmldataFile;
   parserRunTimeData.entitiesFile = entitiesFile;
   parserRunTimeData.xmlCollection = &xmlCollection;
   parserRunTimeData.cData = &cData;
@@ -622,6 +628,7 @@ int main(int argc, char *argv[]) {
     fclose(parserRunTimeData.dictFile);
     fclose(parserRunTimeData.wtagFile);
     fclose(parserRunTimeData.xmltagFile);
+    fclose(parserRunTimeData.xmldataFile);
     fclose(parserRunTimeData.entitiesFile);
 
     long int duration = difftime(time(NULL), startTime);
@@ -732,7 +739,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
         xmlKeyValue->key = malloc(sizeof(char) * (writerPos + 1));
         strcpy(xmlKeyValue->key, readData);
 
-        cData->byteKeys += writerPos;
+        cData->byteKeys += writerPos + 3;
         ++cData->keyCount;
 
         ++xmlTag->keyValuePairs;
@@ -761,9 +768,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
 
   if (xmlHasName) {
 
-    if (!isSubCall) {
-      ++xmlCollection->count;
-    }
+    if (!isSubCall) ++xmlCollection->count;
 
     nodeClosed = false;
     for (unsigned int i = 0; i < xmlCollection->openNodeCount; ++i) {
@@ -1447,11 +1452,8 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
 
         //------------------------------------------------------------------------
 
-        if (!isAdded) {
-          ++cData->failedElements;
-        } else {
-          ++parserRunTimeData->currentPosition;
-        }
+        if (!isAdded) ++cData->failedElements;
+        // else ++parserRunTimeData->currentPosition;
 
         #if DEBUG || BEVERBOSE
         if (!isAdded) printf("     [FAILED]\n");
@@ -1556,7 +1558,7 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
   tag->preSpacesCount = preSpacesCount;
   tag->spacesCount = spacesCount;
   tag->readerPos = readerPosInherited;
-  tag->position = parserRunTimeData->currentPosition;
+  tag->position = ++parserRunTimeData->currentPosition;
   tag->wordCount = 0;
   tag->wTagCount = 0;
   tag->entityCount = 0;
@@ -1727,7 +1729,6 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
             strcpy(tag->target, targetData);
             hasTargetData = true;
 
-            //fprintf(parserRunTimeData->wtagFile, "%u|%d|%d|%d|%d|%d|%ld|%s\n", parserRunTimeData->currentLine, wikiTagType, dataFormatTypeInternal, ownFormatTypeInternal, isFormatStart, isFormatEnd, strlen(tag->target), targetData);
             cData->byteWikiTags += targetWritePos;
             #if DEBUG
             printf("[DEBUG] LINE: %d - TARGET            => \"%s\"\n", parserRunTimeData->currentLine, targetData);
@@ -1924,8 +1925,6 @@ bool addWikiTag(const short elementType, void *element, const unsigned int reade
         //printf("dcf %d | dcof %d | cw %d | iwt %d | dcwt %d | isent %d | wp %d\n", doCloseFormat, doCloseOwnFormat, createWord, isWikiTag, doCloseWikiTag, isEntity, writerPos);
 
         if (writerPos != 0)  {
-          ++parserRunTimeData->currentPosition;
-
           if (isEntity) {
             #if DEBUG
             printf("[DEBUG] [WIKITAG] LINE: %d | POS: %5d | READER: %6d | FOUND [ ENTITY  ] => \"%s\"", parserRunTimeData->currentLine, parserRunTimeData->currentPosition, readerPosInherited + readerPos, entityBuffer);
@@ -2054,8 +2053,8 @@ bool addEntity(const short elementType, void *element, const unsigned int reader
   tagEntity->formatEnd = isFormatEnd;
   tagEntity->preSpacesCount = preSpacesCount;
   tagEntity->spacesCount = spacesCount;
-  tagEntity->position = parserRunTimeData->currentPosition;
-  tagEntity->readerPos = readerPos - preSpacesCount;
+  tagEntity->position = ++parserRunTimeData->currentPosition;
+  tagEntity->readerPos = readerPos;
   strcpy(tagEntity->data, entityBuffer);
 
   if (elementType == 0) {
@@ -2090,8 +2089,8 @@ bool addWord(const short elementType, void *element, const unsigned int readerPo
   tagWord->ownFormatType = ownFormatType;
   tagWord->preSpacesCount = preSpacesCount;
   tagWord->spacesCount = spacesCount;
-  tagWord->readerPos = readerPos - preSpacesCount;
-  tagWord->position = parserRunTimeData->currentPosition;
+  tagWord->readerPos = readerPos;
+  tagWord->position = ++parserRunTimeData->currentPosition;
   tagWord->formatStart = isFormatStart;
   tagWord->formatEnd = isFormatEnd;
   tagWord->data = malloc(sizeof(char) * (dataLength + 1));
@@ -2117,11 +2116,9 @@ bool writeOutDataFiles(const struct parserBaseStore* parserRunTimeData, struct x
     xmlTag = &xmlCollection->nodes[i];
     fprintf(parserRunTimeData->xmltagFile, "%d|%d|%d|%d|%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
 
-    // TODO: Save and store keys and values to a file
-    /*for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
-        free(xmlTag->keyValues[j].key);
-        free(xmlTag->keyValues[j].value);
-    }*/
+    for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
+      fprintf(parserRunTimeData->xmldataFile, "%d|%d|%s|%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
+    }
 
     for (unsigned int j = 0; j < xmlTag->wTagCount; ++j) {
       wTag = &xmlTag->wikiTags[j];
@@ -2179,8 +2176,8 @@ void freeXMLCollection(xmlDataCollection *xmlCollection) {
     xmlTag = &xmlCollection->nodes[i];
 
     for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
-        free(xmlTag->keyValues[j].key);
-        free(xmlTag->keyValues[j].value);
+      free(xmlTag->keyValues[j].key);
+      free(xmlTag->keyValues[j].value);
     }
 
     for (unsigned int j = 0; j < xmlTag->wordCount; ++j) free(xmlTag->words[j].data);
