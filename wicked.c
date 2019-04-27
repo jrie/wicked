@@ -15,12 +15,12 @@
 #define BEVERBOSE false
 #define DEBUG false
 #define DOWRITEOUT true
-//#define LINETOPROCESS 5000
+#define LINETOPROCESS 0
 //#define LINETOPROCESS 1085
 //#define LINETOPROCESS 110
 //#define LINETOPROCESS 128
 //#define LINETOPROCESS 861531
-#define LINETOPROCESS 0
+//#define LINETOPROCESS 0
 
 //#define SOURCEFILE "data/enwik8_small"
 //#define SOURCEFILE "data/enwik8"
@@ -691,7 +691,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
 
   bool nodeClosed = false;
   keyValuePair *xmlKeyValue = NULL;
-
+  
   // Identify the xmlTag name and key and value pairs
   while (line[readerPos] != '>') {
     while (line[readerPos] != '>') {
@@ -709,7 +709,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
           xmlTag->isClosed = true;
           xmlTag->end = parserRunTimeData->currentLine;
 
-          readerPos++;
+          ++readerPos;
           continue;
         }
       } else if (readIn == '"') {
@@ -724,7 +724,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
       continue;
     }
 
-    if (writerPos != 0) {
+    if (writerPos != 0 && (readIn == '"' || readIn == '/' || readIn == '=' || ((readIn != ' ' && !isValue) || (readIn == ' ' && !isValue)))) {
       readData[writerPos] = '\0';
       if (!xmlHasName) {
         xmlTag->name = malloc(sizeof(char) * (writerPos + 1));
@@ -747,6 +747,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
         isKey = false;
         isValue = true;
       } else if (isValue) {
+
         xmlKeyValue->value = malloc(sizeof(char) * (writerPos + 1));
         strcpy(xmlKeyValue->value, readData);
 
@@ -755,7 +756,7 @@ int parseXMLNode(const unsigned int xmlTagStart, const unsigned int lineLength, 
 
         isValue = false;
       }
-
+      
       writerPos = 0;
     }
   }
