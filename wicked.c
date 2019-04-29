@@ -15,21 +15,12 @@
 #define BEVERBOSE false
 #define DEBUG false
 #define DOWRITEOUT true
-<<<<<<< HEAD
 #define LINESTOPROCESS 0
 //#define LINESTOPROCESS 1085
 //#define LINESTOPROCESS 110
 //#define LINESTOPROCESS 128
 //#define LINESTOPROCESS 861531
 //#define LINESTOPROCESS 0
-=======
-#define LINETOPROCESS 0
-//#define LINETOPROCESS 1085
-//#define LINETOPROCESS 110
-//#define LINETOPROCESS 128
-//#define LINETOPROCESS 861531
-//#define LINETOPROCESS 0
->>>>>>> a2764c653f3d55dbc8fa5b83d803ffa627255a1a
 
 //#define SOURCEFILE "data/enwik8_small"
 //#define SOURCEFILE "data/enwik8"
@@ -2160,11 +2151,7 @@ bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *w
 
   for (unsigned int k = 0; k < wTag->wordCount; ++k) {
     wordElement = &wTag->pipedWords[k];
-<<<<<<< HEAD
     fprintf(parserRunTimeData->dictFile, "%u\t%u\t%u\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wordElement->readerPos, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->data);
-=======
-    fprintf(parserRunTimeData->dictFile, "%u\t%u\t%u\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t1\t%s\n", wordElement->position, wordElement->lineNum, wordElement->readerPos, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->data);
->>>>>>> a2764c653f3d55dbc8fa5b83d803ffa627255a1a
   }
 
   for (unsigned int k = 0; k < wTag->wTagCount; ++k) {
