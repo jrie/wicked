@@ -15,10 +15,6 @@ XML nodes are handled and read out structured into memory, including keys and va
 
 By current defaults, wicked creates a lot of debug output which shows an outline of what data has been added, wikitag information styling as well as link targets, anchors, images. Multi-line tables are not supported yet, but this might be a feature to come in a further release.
 
-Words data is written out to **words.txt** - wikitag link targets to **wikitags.txt**. Wikitags become further processed so that included words are handled as well as styling tags. Entities are written to **entities.txt**.
+Words data is written out to **words.txt** - wikitag link targets to **wikitags.txt**. Wikitags become further processed so that included words are handled as well as styling tags. Entities are written to **entities.txt**, xml data is spilled out to **xmltags.txt** and **xmldata.txt**.
 
 Each of this elements contains background information about pre and postspacing, styling information, position in the row by index, if its a format start or end and other details inside *wicked*. I would recommend checking out the data *struct word*, *struct wikitag* and *struct entity* as well as the others.
-
-#### datachecker.py
-
-**datachecker.py** is a Python script, written for Python3, to filter out collected information stored in the **.txt** element files. It does consume a lot of memory and heavily uses regular expressions. It reports all left over information from *wikipedia dump* to **orphandReport.txt** which consists of all lines containing some kind of data, which has not been succesfully replaced by all other clearing routines of *datachecker.py*.
