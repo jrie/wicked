@@ -16,6 +16,7 @@
 #define DEBUG false
 #define DOWRITEOUT true
 #define LINESTOPROCESS 0
+#define STRAIGHTWRITEOUT false
 //#define LINESTOPROCESS 1085
 //#define LINESTOPROCESS 110
 //#define LINESTOPROCESS 128
@@ -26,11 +27,19 @@
 //#define SOURCEFILE "data/enwik8"
 #define SOURCEFILE "data/enwiki-20160720-pages-meta-current1.xml-p000000010p000030303"
 
+#if STRAIGHTWRITEOUT
 #define DICTIONARYFILE "words.txt"
 #define WIKITAGSFILE "wikitags.txt"
 #define XMLTAGFILE "xmltags.txt"
 #define XMLDATAFILE "xmldata.txt"
 #define ENTITIESFILE "entities.txt"
+#else
+#define DICTIONARYFILE "words_sort.txt"
+#define WIKITAGSFILE "wikitags_sort.txt"
+#define XMLTAGFILE "xmltags_sort.txt"
+#define XMLDATAFILE "xmldata_sort.txt"
+#define ENTITIESFILE "entities_sort.txt"
+#endif
 /*
 #define DICTIONARYFILE "data/words.txt"
 #define WIKITAGSFILE "data/wikitags.txt"
@@ -504,6 +513,7 @@ bool addWord(const short, void*, const short, const short, const bool, const boo
 // Writeout
 bool writeOutDataFiles(const struct parserBaseStore*, struct xmlDataCollection*);
 bool writeOutTagData(const struct parserBaseStore*, struct wikiTag*);
+bool writeOutTagDataByLine(const struct parserBaseStore*, struct wikiTag*, const unsigned int);
 
 // Clean up functions
 void freeXMLCollection(struct xmlDataCollection*);
@@ -2150,33 +2160,110 @@ bool writeOutDataFiles(const struct parserBaseStore* parserRunTimeData, struct x
   struct word* wordElement = NULL;
   struct entity* entityElement = NULL;
 
-  for (unsigned int i = 0; i < xmlCollection->count; ++i) {
-    xmlTag = &xmlCollection->nodes[i];
-    fprintf(parserRunTimeData->xmltagFile, "%d\t%d\t%d\t%d\t%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
+  #if STRAIGHTWRITEOUT
+    for (unsigned int i = 0; i < xmlCollection->count; ++i) {
+      xmlTag = &xmlCollection->nodes[i];
+      fprintf(parserRunTimeData->xmltagFile, "%d\t%d\t%d\t%d\t%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
 
-    for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
-      fprintf(parserRunTimeData->xmldataFile, "%d\t%d\t%s\t%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
+      for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
+        fprintf(parserRunTimeData->xmldataFile, "%d\t%d\t%s\t%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
+      }
+
+      for (unsigned int j = 0; j < xmlTag->wordCount; ++j) {
+        wordElement = &xmlTag->words[j];
+        fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, -1, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+      }
+
+      for (unsigned int j = 0; j < xmlTag->entityCount; ++j) {
+        entityElement = &xmlTag->entities[j];
+        fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
+      }
+
+      for (unsigned int j = 0; j < xmlTag->wTagCount; ++j) {
+        wTag = &xmlTag->wikiTags[j];
+        writeOutTagData(parserRunTimeData, wTag);
+      }
+    }
+  #else
+    // SORTED WRITE OUT
+    for (unsigned int i = 0; i < xmlCollection->count; ++i) {
+      xmlTag = &xmlCollection->nodes[i];
+      fprintf(parserRunTimeData->xmltagFile, "%d\t%d\t%d\t%d\t%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
+
+      for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
+        fprintf(parserRunTimeData->xmldataFile, "%d\t%d\t%s\t%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
+      }
     }
 
-    for (unsigned int j = 0; j < xmlTag->wordCount; ++j) {
-      wordElement = &xmlTag->words[j];
-      fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, -1, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+    unsigned int lineNum = 1;
+    while (lineNum <= parserRunTimeData->currentLine) {
+      for (unsigned int i = 0; i < xmlCollection->count; ++i) {
+        xmlTag = &xmlCollection->nodes[i];
+        if (xmlTag->end < lineNum) continue;
+        else if (xmlTag->start > lineNum) break;
+
+        for (unsigned int j = 0; j < xmlTag->wordCount; ++j) {
+          wordElement = &xmlTag->words[j];
+          if (wordElement->lineNum == lineNum) {
+            fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, -1, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+          }
+        }
+
+        for (unsigned int j = 0; j < xmlTag->entityCount; ++j) {
+          entityElement = &xmlTag->entities[j];
+          if (entityElement->lineNum == lineNum) {
+            fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
+          }
+        }
+
+        for (unsigned int j = 0; j < xmlTag->wTagCount; ++j) {
+          wTag = &xmlTag->wikiTags[j];
+          if (wTag->lineNum < lineNum) continue;
+          writeOutTagDataByLine(parserRunTimeData, wTag, lineNum);
+        }
+      }
+
+      ++lineNum;
     }
 
-    for (unsigned int j = 0; j < xmlTag->entityCount; ++j) {
-      entityElement = &xmlTag->entities[j];
+  #endif
+  return true;
+}
+
+// ----------------------------------------------------------
+
+bool writeOutTagDataByLine(const struct parserBaseStore* parserRunTimeData, wikiTag *wTag, const unsigned int lineNum) {
+  struct word* wordElement = NULL;
+  struct entity* entityElement = NULL;
+  struct wikiTag* wikiTagElement = NULL;
+
+  if (wTag->lineNum == lineNum) {
+    fprintf(parserRunTimeData->wtagFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
+  }
+
+  for (unsigned int k = 0; k < wTag->wordCount; ++k) {
+    wordElement = &wTag->pipedWords[k];
+    if (wordElement->lineNum == lineNum) {
+      fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wTag->position, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+    }
+  }
+
+  for (unsigned int k = 0; k < wTag->wTagCount; ++k) {
+    wikiTagElement = &wTag->pipedTags[k];
+    if (wikiTagElement->lineNum == lineNum) {
+      writeOutTagDataByLine(parserRunTimeData, wikiTagElement, lineNum);
+    }
+  }
+
+  for (unsigned int k = 0; k < wTag->entityCount; ++k) {
+    entityElement = &wTag->pipedEntities[k];
+    if (entityElement->lineNum == lineNum) {
       fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
-    }
-
-    for (unsigned int j = 0; j < xmlTag->wTagCount; ++j) {
-      wTag = &xmlTag->wikiTags[j];
-      writeOutTagData(parserRunTimeData, wTag);
     }
   }
 
   return true;
 }
-// ----------------------------------------------------------
 
 bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *wTag) {
   struct word* wordElement = NULL;
@@ -2184,6 +2271,7 @@ bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *w
   struct wikiTag* wikiTagElement = NULL;
 
   fprintf(parserRunTimeData->wtagFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
+
 
   for (unsigned int k = 0; k < wTag->wordCount; ++k) {
     wordElement = &wTag->pipedWords[k];
