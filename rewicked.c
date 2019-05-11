@@ -27,8 +27,8 @@
 
 // Buffers
 #define XMLTAG_BUFFER 5120
-#define IDENTATIONBUFFER 256
-#define SPACESBUFFER 256
+#define IDENTATIONBUFFER 512
+#define SPACESBUFFER 512
 
 // Counts of predefined const datatypes
 #define FORMATS 8
@@ -660,7 +660,7 @@ int main(int argc, char *argv[]) {
     memset(indentation, ' ', IDENTATIONBUFFER);
     indentation[currentDepth * 2] = '\0';
 
-    if ((tmp = getInLine(&readerData, XMLTAG, lineNum, 0)) != NULL) {
+    if ((tmp = getInLine(&readerData, XMLTAG, lineNum, 0))) {
       if (tmp->start == lineNum && !tmp->isHandledTag) {
         tmp->isHandledTag = true;
 
@@ -721,12 +721,12 @@ int main(int argc, char *argv[]) {
     readXMLtag(&readerData);
 
     while(readWikitag(&readerData)) {
-      if ((preTmp = getEntryByType(&readerData, WIKITAG)) != NULL && preTmp->start != lineNum) break;
+      if ((preTmp = getEntryByType(&readerData, WIKITAG)) && preTmp->start != lineNum) break;
     }
 
-    while ((tmp = getInLine(&readerData, WIKITAG, lineNum, position)) != NULL) {
-      memset(preSpaces, ' ', sizeof(preSpaces));
-      memset(subSpaces, ' ', sizeof(subSpaces));
+    while ((tmp = getInLine(&readerData, WIKITAG, lineNum, position))) {
+      memset(preSpaces, ' ', tmp->preSpacesCount);
+      memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
       subSpaces[tmp->spacesCount] = '\0';
 
@@ -758,12 +758,12 @@ int main(int argc, char *argv[]) {
     }
 
     while(readWord(&readerData)) {
-      if ((preTmp = getEntryByType(&readerData, WORD)) != NULL && preTmp->start != lineNum) break;
+      if ((preTmp = getEntryByType(&readerData, WORD)) && preTmp->start != lineNum) break;
     }
-
-    while ((tmp = getInLine(&readerData, WORD, lineNum, position)) != NULL) {
-      memset(preSpaces, ' ', sizeof(preSpaces));
-      memset(subSpaces, ' ', sizeof(subSpaces));
+    
+    while ((tmp = getInLine(&readerData, WORD, lineNum, position)))  {
+      memset(preSpaces, ' ', tmp->preSpacesCount);
+      memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
       subSpaces[tmp->spacesCount] = '\0';
 
@@ -804,12 +804,12 @@ int main(int argc, char *argv[]) {
 
 
     while(readEntity(&readerData)) {
-      if ((preTmp = getEntryByType(&readerData, ENTITY)) != NULL && preTmp->start != lineNum) break;
+      if ((preTmp = getEntryByType(&readerData, ENTITY)) && preTmp->start != lineNum) break;
     }
 
-    if ((tmp = getInLine(&readerData, ENTITY, lineNum, position)) != NULL) {
-      memset(preSpaces, ' ', sizeof(preSpaces));
-      memset(subSpaces, ' ', sizeof(subSpaces));
+    if ((tmp = getInLine(&readerData, ENTITY, lineNum, position))) {
+      memset(preSpaces, ' ', tmp->preSpacesCount);
+      memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
       subSpaces[tmp->spacesCount] = '\0';
 
@@ -863,9 +863,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if (hasReplaced) {
-      continue;
-    }
+    if (hasReplaced) continue;
 
     if ((closeTag = getInLine(&readerData, XMLTAG, lineNum, 0)) != NULL) {
       if (closeTag != NULL) {
