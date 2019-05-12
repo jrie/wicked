@@ -14,10 +14,11 @@
 // Switches
 #define DEBUG false
 #define DEBUG_LARGE false
-#define VERBOSE true
+#define VERBOSE false
 #define DOWRITEOUT true
-#define LINESTOPROCESS 0
+#define LINESTOPROCESS 70000
 
+// -----------------------------------------------------------------------------
 #define OUTPUTFILE "output.txt"
 #define DICTIONARYFILE "words_sort.txt"
 #define WIKITAGSFILE "wikitags_sort.txt"
@@ -427,7 +428,7 @@ bool readWikitag(struct collection*);
 
 bool freeEntryByLine(struct collection*, short, unsigned int, unsigned int);
 struct entry* getEntryByType(struct collection*, short);
-struct entry* getInLine(struct collection*, short, unsigned int, unsigned int);
+struct entry* getInLine(struct collection*, short, unsigned int, unsigned int, unsigned int*);
 
 // ----------------------------------------------------------------------------
 
@@ -461,9 +462,11 @@ bool freeEntryByLine(struct collection *readerData, short elementType, unsigned 
         if (items[0].xmlData) free(items[0].xmlData);
       }
 
+      if (elementType == XMLTAG) --readerData->countXmltag;
+      else if (elementType == WORD) --readerData->countWords;
+      else if (elementType == WIKITAG) --readerData->countWtag;
+      else --readerData->countEntities;
 
-      --count;
-    
       return true;
     }
   }
@@ -483,7 +486,10 @@ bool freeEntryByLine(struct collection *readerData, short elementType, unsigned 
         }
 
         items = (struct entry *) realloc(items, sizeof(struct entry) * count);
-        --count;
+        if (elementType == XMLTAG) --readerData->countXmltag;
+        else if (elementType == WORD) --readerData->countWords;
+        else if (elementType == WIKITAG) --readerData->countWtag;
+        else --readerData->countEntities;
 
         return true;
       } else {
@@ -499,7 +505,11 @@ bool freeEntryByLine(struct collection *readerData, short elementType, unsigned 
         }
 
         memmove(&items[i], &items[i + 1], sizeof(struct entry) * (count - i - 1));
-        --count;
+        
+        if (elementType == XMLTAG) --readerData->countXmltag;
+        else if (elementType == WORD) --readerData->countWords;
+        else if (elementType == WIKITAG) --readerData->countWtag;
+        else --readerData->countEntities;
 
         return true;
       }
@@ -531,7 +541,7 @@ struct entry* getEntryByType(struct collection *readerData, short elementType) {
 
 //------------------------------------------------------------------------------
 
-struct entry* getInLine(struct collection *readerData, short elementType, unsigned int lineNum, unsigned int position) {
+struct entry* getInLine(struct collection *readerData, short elementType, unsigned int lineNum, unsigned int position, unsigned int* lastPos) {
   unsigned int count = 0;
   struct entry* items = NULL;
   if (elementType == XMLTAG) {
@@ -551,8 +561,9 @@ struct entry* getInLine(struct collection *readerData, short elementType, unsign
   if (count == 0) return NULL;
 
   if (position != 0) {
-    for (unsigned int i = 0 ; i < count; ++i) {
+    for (unsigned int i = *lastPos ; i < count; ++i) {
       if (items[i].start == lineNum && items[i].end == lineNum && items[i].position == position) return &items[i];
+      ++lastPos;
     }
   } else {
     for (unsigned int i = 0 ; i < count; ++i) {
@@ -612,6 +623,7 @@ int main(int argc, char *argv[]) {
 
   unsigned int lineNum = 1;
   unsigned int position = 1;
+  unsigned int lastPos = 0;
 
   bool hasReplaced = false;
   char preSpaces[SPACESBUFFER];
@@ -659,8 +671,9 @@ int main(int argc, char *argv[]) {
 
     memset(indentation, ' ', IDENTATIONBUFFER);
     indentation[currentDepth * 2] = '\0';
-
-    if ((tmp = getInLine(&readerData, XMLTAG, lineNum, 0))) {
+    
+    lastPos = 0;
+    if ((tmp = getInLine(&readerData, XMLTAG, lineNum, 0, &lastPos))) {
       if (tmp->start == lineNum && !tmp->isHandledTag) {
         tmp->isHandledTag = true;
 
@@ -703,7 +716,6 @@ int main(int argc, char *argv[]) {
 
           if (tmp->end == lineNum) {
             hasReplaced = true;
-            ++position;
           }
         }
 
@@ -724,7 +736,8 @@ int main(int argc, char *argv[]) {
       if ((preTmp = getEntryByType(&readerData, WIKITAG)) && preTmp->start != lineNum) break;
     }
 
-    while ((tmp = getInLine(&readerData, WIKITAG, lineNum, position))) {
+    lastPos = 0;
+    while ((tmp = getInLine(&readerData, WIKITAG, lineNum, position, &lastPos))) {
       memset(preSpaces, ' ', tmp->preSpacesCount);
       memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
@@ -757,16 +770,17 @@ int main(int argc, char *argv[]) {
       ++position;
     }
 
+
     while(readWord(&readerData)) {
       if ((preTmp = getEntryByType(&readerData, WORD)) && preTmp->start != lineNum) break;
     }
-    
-    while ((tmp = getInLine(&readerData, WORD, lineNum, position)))  {
+   
+    lastPos = 0;
+    while ((tmp = getInLine(&readerData, WORD, lineNum, position, &lastPos)))  {
       memset(preSpaces, ' ', tmp->preSpacesCount);
       memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
       subSpaces[tmp->spacesCount] = '\0';
-
 
       if (tmp->connectedTag != -1) {
         lastWikiTypePos = tmp->position;
@@ -802,12 +816,12 @@ int main(int argc, char *argv[]) {
       ++position;
     }
 
-
     while(readEntity(&readerData)) {
       if ((preTmp = getEntryByType(&readerData, ENTITY)) && preTmp->start != lineNum) break;
     }
 
-    if ((tmp = getInLine(&readerData, ENTITY, lineNum, position))) {
+    lastPos = 0;
+    if ((tmp = getInLine(&readerData, ENTITY, lineNum, position, &lastPos))) {
       memset(preSpaces, ' ', tmp->preSpacesCount);
       memset(subSpaces, ' ', tmp->spacesCount);
       preSpaces[tmp->preSpacesCount] = '\0';
@@ -847,7 +861,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (lastWikiType != -1 && lastWikiTypePos != -1) {
-      tmp = getInLine(&readerData, WORD, lineNum, position + 1);
+      lastPos = 0;
+      tmp = getInLine(&readerData, WORD, lineNum, position + 1, &lastPos);
       if (!tmp || (tmp && tmp->connectedTag == -1)) {
         // TODO: Add table closing here.
         char closing[3];
@@ -864,8 +879,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (hasReplaced) continue;
-
-    if ((closeTag = getInLine(&readerData, XMLTAG, lineNum, 0)) != NULL) {
+    
+    lastPos = 0;
+    if ((closeTag = getInLine(&readerData, XMLTAG, lineNum, 0, &lastPos))) {
       if (closeTag != NULL) {
         if (closeTag->isDataNode && closeTag->end == lineNum) {
           #if DEBUG
@@ -924,7 +940,7 @@ int main(int argc, char *argv[]) {
       if (currentDepth > 0 && currentDepth == previousDepth) --currentDepth;
     }
 
-    position = 0;
+    position = 1;
     ++lineNum;
   }
 
