@@ -14,9 +14,9 @@
 // Switches
 #define DEBUG false
 #define DEBUG_LARGE false
-#define VERBOSE false
+#define VERBOSE true
 #define DOWRITEOUT true
-#define LINESTOPROCESS 70000
+#define LINESTOPROCESS 0
 
 // -----------------------------------------------------------------------------
 #define OUTPUTFILE "output.txt"
@@ -505,7 +505,7 @@ bool freeEntryByLine(struct collection *readerData, short elementType, unsigned 
         }
 
         memmove(&items[i], &items[i + 1], sizeof(struct entry) * (count - i - 1));
-        
+
         if (elementType == XMLTAG) --readerData->countXmltag;
         else if (elementType == WORD) --readerData->countWords;
         else if (elementType == WIKITAG) --readerData->countWtag;
@@ -580,12 +580,12 @@ struct entry* getInLine(struct collection *readerData, short elementType, unsign
 int main(int argc, char *argv[]) {
   printf("[ INFO ] Starting transpilling on file \"%s\".\n", OUTPUTFILE);
 
-  FILE *outputFile = fopen(OUTPUTFILE, "wb");
-  FILE *dictFile = fopen(DICTIONARYFILE, "rb");
-  FILE *wtagFile = fopen(WIKITAGSFILE, "rb");
-  FILE *xmltagFile = fopen(XMLTAGFILE, "rb");
-  FILE *xmldataFile = fopen(XMLDATAFILE, "rb");
-  FILE *entitiesFile = fopen(ENTITIESFILE, "rb");
+  FILE *outputFile = fopen(OUTPUTFILE, "w");
+  FILE *dictFile = fopen(DICTIONARYFILE, "r");
+  FILE *wtagFile = fopen(WIKITAGSFILE, "r");
+  FILE *xmltagFile = fopen(XMLTAGFILE, "r");
+  FILE *xmldataFile = fopen(XMLDATAFILE, "r");
+  FILE *entitiesFile = fopen(ENTITIESFILE, "r");
 
   fseek(dictFile, 0, SEEK_END);
   fseek(wtagFile, 0, SEEK_END);
@@ -671,7 +671,7 @@ int main(int argc, char *argv[]) {
 
     memset(indentation, ' ', IDENTATIONBUFFER);
     indentation[currentDepth * 2] = '\0';
-    
+
     lastPos = 0;
     if ((tmp = getInLine(&readerData, XMLTAG, lineNum, 0, &lastPos))) {
       if (tmp->start == lineNum && !tmp->isHandledTag) {
@@ -702,7 +702,7 @@ int main(int argc, char *argv[]) {
             #endif
 
             #if DOWRITEOUT
-            fputc('\n', outputFile);
+            fprintf(outputFile, ">\n");
             #endif
           }
         } else {
@@ -774,7 +774,7 @@ int main(int argc, char *argv[]) {
     while(readWord(&readerData)) {
       if ((preTmp = getEntryByType(&readerData, WORD)) && preTmp->start != lineNum) break;
     }
-   
+
     lastPos = 0;
     while ((tmp = getInLine(&readerData, WORD, lineNum, position, &lastPos)))  {
       memset(preSpaces, ' ', tmp->preSpacesCount);
@@ -879,7 +879,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (hasReplaced) continue;
-    
+
     lastPos = 0;
     if ((closeTag = getInLine(&readerData, XMLTAG, lineNum, 0, &lastPos))) {
       if (closeTag != NULL) {
@@ -1204,10 +1204,10 @@ bool readEntity(struct collection *readerData) {
   if (returnValue == EOF) return false;
 
   element->stringData = (char*) realloc(element->stringData, sizeof(char) * 24);
-  
+
   returnValue = fscanf(readerData->entitiesFile, "%[^\n]s\n", element->stringData);
   if (returnValue == EOF) return false;
-  
+
   element->end = element->start;
 
   fpos_t pos;
