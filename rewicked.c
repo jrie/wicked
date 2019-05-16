@@ -1056,9 +1056,7 @@ bool readXMLtag(struct collection *readerData) {
 //------------------------------------------------------------------------------
 
 bool readWikitag(struct collection *readerData) {
-  //printf("in wiki tag\n\n");
-  //printf("%ld / %ld\n", readerData->readwtag, readerData->wtagSize);
-  if (readerData->readwtag >= readerData->wtagSize) return false;
+  if (readerData->readwtag == readerData->wtagSize) return false;
 
   if ((readerData->entriesWtag = (struct entry*) realloc(readerData->entriesWtag, sizeof(struct entry) * (readerData->countWtag + 1))) == NULL) {
     return false;
@@ -1112,7 +1110,7 @@ bool readWikitag(struct collection *readerData) {
 
 bool readWord(struct collection *readerData) {
   //printf("in word tag\n\n");
-  if (readerData->readDict >= readerData->dictSize) return false;
+  if (readerData->readDict == readerData->dictSize) return false;
 
   if ((readerData->entriesWords = (struct entry*) realloc(readerData->entriesWords, sizeof(struct entry) * (readerData->countWords + 1))) == NULL) {
     return false;
@@ -1158,7 +1156,7 @@ bool readWord(struct collection *readerData) {
 
 bool readEntity(struct collection *readerData) {
   //printf("in entity tag\n\n");
-  if (&readerData->readentities >= &readerData->entitiesSize) return false;
+  if (&readerData->readentities == &readerData->entitiesSize) return false;
 
   if ((readerData->entriesEntities = (struct entry*) realloc(readerData->entriesEntities, sizeof(struct entry) * (readerData->countEntities + 1))) == NULL) {
     return false;
