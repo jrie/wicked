@@ -2188,31 +2188,35 @@ bool writeOutDataFiles(const struct parserBaseStore* parserRunTimeData, struct x
     // SORTED WRITE OUT
     for (unsigned int i = 0; i < xmlCollection->count; ++i) {
       xmlTag = &xmlCollection->nodes[i];
-      fprintf(parserRunTimeData->xmltagFile, "%d\t%d\t%d\t%d\t%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
+      fprintf(parserRunTimeData->xmltagFile, "%x\t%x\t%d\t%d\t%s\n", xmlTag->start , xmlTag->end, xmlTag->isClosed, xmlTag->isDataNode, xmlTag->name);
 
       for (unsigned int j = 0; j < xmlTag->keyValuePairs; ++j) {
-        fprintf(parserRunTimeData->xmldataFile, "%d\t%d\t%s\t%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
+        fprintf(parserRunTimeData->xmldataFile, "%x\t%x\t%s\t%s\n", xmlTag->start, xmlTag->end, xmlTag->keyValues[j].key, xmlTag->keyValues[j].value);
       }
     }
 
     unsigned int lineNum = 1;
+    unsigned int lastChecked = 0;
     while (lineNum <= parserRunTimeData->currentLine) {
-      for (unsigned int i = 0; i < xmlCollection->count; ++i) {
+      for (unsigned int i = lastChecked; i < xmlCollection->count; ++i) {
         xmlTag = &xmlCollection->nodes[i];
-        if (xmlTag->end < lineNum) continue;
-        else if (xmlTag->start > lineNum) break;
+        if (xmlTag->end < lineNum) {
+          if (xmlTag->start < lineNum) lastChecked = i;
+          continue;
+        } else if (xmlTag->start > lineNum) break;
+
 
         for (unsigned int j = 0; j < xmlTag->wordCount; ++j) {
           wordElement = &xmlTag->words[j];
           if (wordElement->lineNum == lineNum) {
-            fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, -1, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+            fprintf(parserRunTimeData->dictFile, "%x\t%x\t%d\t%x\t%x\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, -1, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
           }
         }
 
         for (unsigned int j = 0; j < xmlTag->entityCount; ++j) {
           entityElement = &xmlTag->entities[j];
           if (entityElement->lineNum == lineNum) {
-            fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
+            fprintf(parserRunTimeData->entitiesFile, "%x\t%x\t%d\t%x\t%x\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
           }
         }
 
@@ -2238,13 +2242,13 @@ bool writeOutTagDataByLine(const struct parserBaseStore* parserRunTimeData, wiki
   struct wikiTag* wikiTagElement = NULL;
 
   if (wTag->lineNum == lineNum) {
-    fprintf(parserRunTimeData->wtagFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
+    fprintf(parserRunTimeData->wtagFile, "%x\t%x\t%x\t%x\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
   }
 
   for (unsigned int k = 0; k < wTag->wordCount; ++k) {
     wordElement = &wTag->pipedWords[k];
     if (wordElement->lineNum == lineNum) {
-      fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wTag->position, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+      fprintf(parserRunTimeData->dictFile, "%x\t%x\t%d\t%x\t%x\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wTag->position, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
     }
   }
 
@@ -2258,7 +2262,7 @@ bool writeOutTagDataByLine(const struct parserBaseStore* parserRunTimeData, wiki
   for (unsigned int k = 0; k < wTag->entityCount; ++k) {
     entityElement = &wTag->pipedEntities[k];
     if (entityElement->lineNum == lineNum) {
-      fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
+      fprintf(parserRunTimeData->entitiesFile, "%x\t%x\t%d\t%x\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, wTag->position, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
     }
   }
 
@@ -2270,12 +2274,12 @@ bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *w
   struct entity* entityElement = NULL;
   struct wikiTag* wikiTagElement = NULL;
 
-  fprintf(parserRunTimeData->wtagFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
+  fprintf(parserRunTimeData->wtagFile, "%x\t%x\t%x\t%x\t%d\t%d\t%d\t%d\t%d\t%d\t%lu\t%d\t%s\n",  wTag->position, wTag->lineNum, wTag->preSpacesCount, wTag->spacesCount, wTag->tagType, wTag->dataFormatType, wTag->ownFormatType, wTag->formatStart, wTag->formatEnd, wTag->tagLength, strlen(wTag->target), wTag->hasPipe, wTag->target);
 
 
   for (unsigned int k = 0; k < wTag->wordCount; ++k) {
     wordElement = &wTag->pipedWords[k];
-    fprintf(parserRunTimeData->dictFile, "%u\t%u\t%d\t%d\t%d\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wTag->position, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
+    fprintf(parserRunTimeData->dictFile, "%x\t%x\t%x\t%x\t%x\t%ld\t%d\t%d\t%d\t%d\t%d\t%s\n", wordElement->position, wordElement->lineNum, wTag->position, wordElement->preSpacesCount, wordElement->spacesCount, strlen(wordElement->data), wordElement->dataFormatType, wordElement->ownFormatType, wordElement->formatStart, wordElement->formatEnd, wordElement->hasPipe, wordElement->data);
   }
 
   for (unsigned int k = 0; k < wTag->wTagCount; ++k) {
@@ -2285,7 +2289,7 @@ bool writeOutTagData(const struct parserBaseStore* parserRunTimeData, wikiTag *w
 
   for (unsigned int k = 0; k < wTag->entityCount; ++k) {
     entityElement = &wTag->pipedEntities[k];
-    fprintf(parserRunTimeData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, -1, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
+    fprintf(parserRunTimeData->entitiesFile, "%x\t%x\t%x\t%x\t%x\t%d\t%d\t%d\t%d\t%d\t%s\n",  entityElement->position, entityElement->lineNum, wTag->position, entityElement->preSpacesCount, entityElement->spacesCount, entityElement->dataFormatType, entityElement->ownFormatType, entityElement->formatStart, entityElement->formatEnd, entityElement->hasPipe, entityElement->data);
   }
 
   return true;
