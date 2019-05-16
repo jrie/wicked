@@ -2200,11 +2200,10 @@ bool writeOutDataFiles(const struct parserBaseStore* parserRunTimeData, struct x
     while (lineNum <= parserRunTimeData->currentLine) {
       for (unsigned int i = lastChecked; i < xmlCollection->count; ++i) {
         xmlTag = &xmlCollection->nodes[i];
-        if (xmlTag->end < lineNum) {
-          if (xmlTag->start < lineNum) lastChecked = i;
-          continue;
-        } else if (xmlTag->start > lineNum) break;
+        if (xmlTag->end < lineNum) continue;
+        else if (xmlTag->start > lineNum) break;
 
+        lastChecked = i;
 
         for (unsigned int j = 0; j < xmlTag->wordCount; ++j) {
           wordElement = &xmlTag->words[j];
@@ -2222,8 +2221,9 @@ bool writeOutDataFiles(const struct parserBaseStore* parserRunTimeData, struct x
 
         for (unsigned int j = 0; j < xmlTag->wTagCount; ++j) {
           wTag = &xmlTag->wikiTags[j];
-          if (wTag->lineNum < lineNum) continue;
-          writeOutTagDataByLine(parserRunTimeData, wTag, lineNum);
+          if (wTag->lineNum == lineNum) {
+            writeOutTagDataByLine(parserRunTimeData, wTag, lineNum);
+          }
         }
       }
 
