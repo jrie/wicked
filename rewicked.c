@@ -592,32 +592,20 @@ int main(int argc, char *argv[]) {
   fseek(xmltagFile, 0, SEEK_END);
   fseek(xmldataFile, 0, SEEK_END);
   fseek(entitiesFile, 0, SEEK_END);
-  fpos_t dictFileSize;
-  fpos_t wtagFileSize;
-  fpos_t xmltagFileSize;
-  fpos_t xmldataFileSize;
-  fpos_t entitiesFileSize;
 
-  fgetpos(dictFile, &dictFileSize);
-  fgetpos(wtagFile, &wtagFileSize);
-  fgetpos(xmltagFile, &xmltagFileSize);
-  fgetpos(xmldataFile, &xmldataFileSize);
-  fgetpos(entitiesFile, &entitiesFileSize);
+  struct collection readerData = { outputFile,
+    dictFile, wtagFile, xmltagFile, xmldataFile, entitiesFile,
+    ftell(dictFile), ftell(wtagFile), ftell(xmltagFile), ftell(xmldataFile), ftell(entitiesFile),
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0,
+    NULL, NULL, NULL, NULL
+  };
 
   rewind(dictFile);
   rewind(wtagFile);
   rewind(xmltagFile);
   rewind(xmldataFile);
   rewind(entitiesFile);
-
-  struct collection readerData = { outputFile,
-    dictFile, wtagFile, xmltagFile, xmldataFile, entitiesFile,
-    dictFileSize.__pos, wtagFileSize.__pos, xmltagFileSize.__pos, xmldataFileSize.__pos, entitiesFileSize.__pos,
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0,
-    NULL, NULL, NULL, NULL
-  };
-
 
   time_t startTime = time(NULL);
 
@@ -1012,7 +1000,7 @@ bool readXMLtag(struct collection *readerData) {
   element->isHandledTag = false;
   element->hasPipe = false;
 
-  returnValue = fscanf(readerData->xmltagFile, "%u\t%u\t%hi\t%hi\t", &element->start, &element->end, &element->isClosed, &element->isDataNode);
+  returnValue = fscanf(readerData->xmltagFile, "%x\t%x\t%hi\t%hi\t", &element->start, &element->end, &element->isClosed, &element->isDataNode);
 
   if (returnValue == EOF) return false;
 
@@ -1025,11 +1013,11 @@ bool readXMLtag(struct collection *readerData) {
   char tmpValue[1280] = "\0";
 
   if (readerData->readxmldata < readerData->xmldataSize) {
-    fpos_t readBytes;
+    unsigned int readBytes = 0;
     while (true) {
-      fgetpos(readerData->xmldataFile, &readBytes);
-      if (readBytes.__pos == readerData->xmldataSize) break;
-      returnValue = fscanf(readerData->xmldataFile, "%d\t%d\t", &start, &end);
+      readBytes = ftell(readerData->xmldataFile);
+      if (readBytes == readerData->xmldataSize) break;
+      returnValue = fscanf(readerData->xmldataFile, "%x\t%x\t", &start, &end);
       if (returnValue == EOF) break;
 
       if (start == element->start && end == element->end) {
@@ -1047,25 +1035,20 @@ bool readXMLtag(struct collection *readerData) {
         //printf("xmlData =>\t%s\t==>\t%s\n", tmpKey, tmpValue);
         #endif
       } else {
-        fsetpos(readerData->xmldataFile, &readBytes);
+        fseek(readerData->xmldataFile, readBytes, SEEK_SET);
         break;
       }
     }
 
     element->xmlDataCount = dataCount;
-    fpos_t pos;
-    fgetpos(readerData->xmldataFile, &pos);
-    readerData->readxmldata = pos.__pos;
+    readerData->readxmldata = ftell(readerData->xmldataFile);
 
   }
 
   returnValue = fscanf(readerData->xmltagFile, "%[^\n]s\n", element->stringData);
   if (returnValue == EOF) return false;
 
-  fpos_t pos;
-  fgetpos(readerData->xmltagFile, &pos);
-  readerData->readxmltag = pos.__pos;
-
+  readerData->readxmltag = ftell(readerData->xmltagFile);
   ++readerData->countXmltag;
   return true;
 }
@@ -1101,7 +1084,7 @@ bool readWikitag(struct collection *readerData) {
   element->formatEnd = 0;
   element->isHandledTag = false;
   element->hasPipe = false;
-  returnValue = fscanf(readerData->wtagFile, "%u\t%u\t%d\t%d\t%hi\t%hi\t%hi\t%d\t%d\t%d\t%d\t%hi\t", &element->position, &element->start, &element->preSpacesCount, &element->spacesCount, &element->tagType, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->tagLength, &element->length, &element->hasPipe);
+  returnValue = fscanf(readerData->wtagFile, "%x\t%x\t%x\t%x\t%hi\t%hi\t%hi\t%d\t%d\t%d\t%d\t%hi\t", &element->position, &element->start, &element->preSpacesCount, &element->spacesCount, &element->tagType, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->tagLength, &element->length, &element->hasPipe);
   if (returnValue == EOF) return false;
 
   element->end = element->start;
@@ -1120,11 +1103,8 @@ bool readWikitag(struct collection *readerData) {
     if (returnValue == EOF) return false;
   }
 
-  fpos_t pos;
-  fgetpos(readerData->wtagFile, &pos);
-  readerData->readwtag = pos.__pos;
-
-   ++readerData->countWtag;
+  readerData->readwtag = ftell(readerData->wtagFile);
+  ++readerData->countWtag;
   return true;
 }
 
@@ -1151,7 +1131,7 @@ bool readWord(struct collection *readerData) {
   element->isHandledTag = false;
   element->hasPipe = false;
 
-  returnValue = fscanf(readerData->dictFile, "%u\t%u\t%d\t%u\t%u\t%u\t%hi\t%hi\t%d\t%d\t%hi\t", &element->position, &element->start, &element->connectedTag, &element->preSpacesCount, &element->spacesCount, &element->length, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->hasPipe);
+  returnValue = fscanf(readerData->dictFile, "%x\t%x\t%d\t%x\t%x\t%u\t%hi\t%hi\t%d\t%d\t%hi\t", &element->position, &element->start, &element->connectedTag, &element->preSpacesCount, &element->spacesCount, &element->length, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->hasPipe);
   if (returnValue == EOF) return false;
 
   element->end = element->start;
@@ -1169,10 +1149,7 @@ bool readWord(struct collection *readerData) {
     if (returnValue == EOF) return false;
   }
 
-  fpos_t pos;
-  fgetpos(readerData->dictFile, &pos);
-  readerData->readDict = pos.__pos;
-
+  readerData->readDict = ftell(readerData->dictFile);
   ++readerData->countWords;
   return true;
 }
@@ -1200,7 +1177,7 @@ bool readEntity(struct collection *readerData) {
   element->isHandledTag = false;
   element->hasPipe = false;
 
-  returnValue = fscanf(readerData->entitiesFile, "%u\t%u\t%d\t%d\t%d\t%hi\t%hi\t%d\t%d\t%hi\t", &element->position, &element->start, &element->connectedTag, &element->preSpacesCount, &element->spacesCount, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->hasPipe);
+  returnValue = fscanf(readerData->entitiesFile, "%x\t%x\t%d\t%x\t%x\t%hi\t%hi\t%d\t%d\t%hi\t", &element->position, &element->start, &element->connectedTag, &element->preSpacesCount, &element->spacesCount, &element->dataFormatType, &element->ownFormatType, &element->formatStart, &element->formatEnd, &element->hasPipe);
   if (returnValue == EOF) return false;
 
   element->stringData = (char*) realloc(element->stringData, sizeof(char) * 24);
@@ -1210,10 +1187,7 @@ bool readEntity(struct collection *readerData) {
 
   element->end = element->start;
 
-  fpos_t pos;
-  fgetpos(readerData->entitiesFile, &pos);
-  readerData->readentities = pos.__pos;
-
+  readerData->readentities = ftell(readerData->entitiesFile);
   ++readerData->countEntities;
   return true;
 }
