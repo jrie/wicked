@@ -611,6 +611,7 @@ int main(int argc, char *argv[]) {
     line[lineLength] = '\0';
     ++cData.byteNewLine;
     parserRunTimeData.currentPosition = 0;
+    parserRunTimeData.isMathSection = false;
 
     // Find XML Tags on line
     if (line[0] != '<') {
@@ -912,6 +913,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         if (isWikiTag) {
           if (writerPos != 0) ++spacesCount;
           else ++preSpacesCount;
+
           readData[writerPos] = readIn;
           ++writerPos;
           ++readerPos;
@@ -1000,7 +1002,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
         ++readerPos;
         continue;
         break;
-        break;
       case '<':
         createWord = true;
         break;
@@ -1010,7 +1011,7 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
           tmpChar = line[readerPos + 1];
 
           if (tmpChar == readIn) {
-            if (writerPos != 0 && wikiTagDepth == 0) {
+            if (writerPos != 0) {
               createWord = true;
               --readerPos;
               break;
@@ -1035,28 +1036,30 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
             for (short i = 0; i < TAGTYPES; ++i) {
               tagLength = strlen(tagTypes[i]);
               if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
-                if (wikiTagDepth != 0) {
+                if (wikiTagType == MATHTAG) parserRunTimeData->isMathSection = true;
+
+                /*if (wikiTagDepth != 0) {
+                  cData->byteWikiTags += tagLength;
                   ++wikiTagDepth;
-                  ++readerPos;
+                  readerPos += tagLength - 1;
                   break;
-                }
+                }*/
                 ++wikiTagDepth;
                 wikiTagType = i;
 
-                if (wikiTagType == MATHTAG) parserRunTimeData->isMathSection = true;
-
                 isWikiTag = true;
                 cData->byteWikiTags += tagLength;
-                ++readerPos;
+                readerPos += tagLength - 1;
                 break;
               }
             }
-
+            /*
             if (wikiTagDepth > 1) {
               readData[writerPos] = readIn;
               ++writerPos;
               continue;
             }
+            */
 
             if (isWikiTag) break;
           }
@@ -1087,8 +1090,6 @@ int parseXMLData(unsigned int readerPos, const unsigned int lineLength, const ch
               ++cData->byteWikiTags;
 
               if (wikiTagDepth != 0) {
-                readData[writerPos++] = readIn;
-                readData[writerPos++] = readIn;
                 readerPos += 2;
                 continue;
               }
@@ -1665,7 +1666,12 @@ bool addWikiTag(const short elementType, void *element, const short dataFormatTy
           }
 
           if (readData[readerPos] == '|') hasPipe = true;
-          --readerPos;
+
+          if (writerPos != 0)  {
+            createWord = true;
+            --readerPos;
+            break;
+          }
 
           parserData[writerPos] = readIn;
           ++writerPos;
@@ -1678,8 +1684,8 @@ bool addWikiTag(const short elementType, void *element, const short dataFormatTy
           }
 
           if (readData[readerPos] == '|') hasPipe = true;
-          --readerPos;
 
+          --readerPos;
           createWord = true;
           break;
         }
@@ -1821,11 +1827,11 @@ bool addWikiTag(const short elementType, void *element, const short dataFormatTy
             for (short i = 0; i < TAGTYPES; ++i) {
               tagLength = strlen(tagTypes[i]);
               if (strncmp(formatData, tagTypes[i], tagLength) == 0) {
-                  tagType = i;
-                  isWikiTag = true;
-                  cData->byteFormatting += tagLength;
-                  // ++readerPos;
-                  ++wikiTagDepth;
+                tagType = i;
+                isWikiTag = true;
+                cData->byteWikiTags += tagLength;
+                readerPos += tagLength - 1;
+                ++wikiTagDepth;
                 break;
               }
             }
