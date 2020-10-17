@@ -14,7 +14,7 @@
 // Switches
 #define BEVERBOSE false
 #define DEBUG true
-#define DOWRITEOUT false
+#define DOWRITEOUT true
 #define LINESTOPROCESS 0
 #define STRAIGHTWRITEOUT false
 //#define LINESTOPROCESS 1085
