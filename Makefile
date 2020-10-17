@@ -1,7 +1,6 @@
 #Makefile template from Lazyfoo Productions
 #OBJS specifies which files to compile as part of the project
 OBJS = wicked.c
-OBJS_RE = rewicked.c
 
 #CC specifies which compiler we're using
 CC = gcc
@@ -10,18 +9,15 @@ CC = gcc
 # -w suppresses all warnings
 #COMPILER_FLAGS = -Wall -std=c11 -O3 -g -fpack-struct=2
 COMPILER_FLAGS = -Wall -std=c11 -O3 -g -fpack-struct=2
-COMPILER_FLAGS_RE = -Wall -std=c11 -O3 -g
 
 #LINKER_FLAGS specifies the libraries we're linking against
 LINKER_FLAGS = -lm
 
 #OBJ_NAME specifies the name of our exectuable
 OBJ_NAME = wicked
-OBJ_RE_NAME = rewicked
 
 #This is the target that compiles our executable
 all : $(OBJS)
 	$(CC) $(OBJS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
-	$(CC) $(OBJS_RE) $(COMPILER_FLAGS_RE) $(LINKER_FLAGS) -o $(OBJ_RE_NAME)
 	#./wicked
-	#./rewicked
+
