@@ -3,7 +3,7 @@ A wikipedia dump parser written in pure C.
 
 ![screenshot of wicked](screenshot.png)
 
-![screenshot of wicked](screenshot2.png)
+![screenshot of wicked in action](screenshot2.png)
 
 ## In short
 *wicked* parses (wikipedia) xml dumps. And should function as a foundation for an compressor, reading out data, attributes, key and values of XML and Wikipedia tag data into RAM, but also saving out parsing results to files and delivering debug output to aid checking for errors or providing a file count/byte detection statistic.
